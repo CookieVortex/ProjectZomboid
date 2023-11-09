@@ -1377,7 +1377,7 @@ public class GameServer {
                 IsoCell isoCellInstance = IsoCell.getInstance();
                 IsoPlayer isoPlayerInstance = new IsoPlayer(isoCellInstance);
 
-                if (var1.username != null && var1.username.isEmpty()) {
+                if (var1.username != null && !var1.username.isEmpty()) {
                     double hoursSurvived = isoPlayerInstance.getHoursSurvived();
 
                     if (hoursSurvived < 2.0) {
