@@ -1,80 +1,21 @@
 package zombie.network;
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.net.ConnectException;
-import java.nio.ByteBuffer;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Objects;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import se.krka.kahlua.vm.KahluaTable;
 import se.krka.kahlua.vm.KahluaTableIterator;
-import zombie.AmbientSoundManager;
-import zombie.AmbientStreamManager;
-import zombie.DebugFileWatcher;
-import zombie.GameProfiler;
-import zombie.GameSounds;
-import zombie.GameTime;
-import zombie.GameWindow;
-import zombie.MapCollisionData;
-import zombie.SandboxOptions;
-import zombie.SoundManager;
-import zombie.SystemDisabler;
-import zombie.VirtualZombieManager;
-import zombie.WorldSoundManager;
-import zombie.ZomboidFileSystem;
-import zombie.ZomboidGlobals;
+import zombie.*;
 import zombie.Lua.LuaEventManager;
 import zombie.Lua.LuaManager;
 import zombie.asset.AssetManagers;
 import zombie.audio.GameSound;
 import zombie.audio.GameSoundClip;
-import zombie.characters.Faction;
-import zombie.characters.IsoGameCharacter;
-import zombie.characters.IsoPlayer;
-import zombie.characters.IsoZombie;
-import zombie.characters.Safety;
-import zombie.characters.SafetySystemManager;
-import zombie.characters.Stats;
-import zombie.characters.SurvivorDesc;
-import zombie.characters.SurvivorFactory;
 import zombie.characters.BodyDamage.BodyPart;
 import zombie.characters.BodyDamage.BodyPartType;
+import zombie.characters.*;
 import zombie.characters.skills.CustomPerks;
 import zombie.characters.skills.PerkFactory;
 import zombie.commands.CommandBase;
 import zombie.commands.PlayerType;
-import zombie.core.Color;
-import zombie.core.Core;
-import zombie.core.Languages;
-import zombie.core.PerformanceSettings;
-import zombie.core.ProxyPrintStream;
-import zombie.core.Rand;
-import zombie.core.ThreadGroups;
-import zombie.core.Translator;
+import zombie.core.*;
 import zombie.core.backup.ZipBackup;
 import zombie.core.logger.ExceptionLogger;
 import zombie.core.logger.LoggerManager;
@@ -90,29 +31,12 @@ import zombie.core.raknet.UdpConnection;
 import zombie.core.raknet.UdpEngine;
 import zombie.core.skinnedmodel.ModelManager;
 import zombie.core.skinnedmodel.advancedanimation.AnimNodeAssetManager;
-import zombie.core.skinnedmodel.model.AiSceneAsset;
-import zombie.core.skinnedmodel.model.AiSceneAssetManager;
-import zombie.core.skinnedmodel.model.AnimationAsset;
-import zombie.core.skinnedmodel.model.AnimationAssetManager;
-import zombie.core.skinnedmodel.model.MeshAssetManager;
-import zombie.core.skinnedmodel.model.Model;
-import zombie.core.skinnedmodel.model.ModelAssetManager;
-import zombie.core.skinnedmodel.model.ModelMesh;
+import zombie.core.skinnedmodel.model.*;
 import zombie.core.skinnedmodel.model.jassimp.JAssImpImporter;
-import zombie.core.skinnedmodel.population.BeardStyles;
-import zombie.core.skinnedmodel.population.ClothingDecals;
-import zombie.core.skinnedmodel.population.ClothingItem;
-import zombie.core.skinnedmodel.population.ClothingItemAssetManager;
-import zombie.core.skinnedmodel.population.HairStyles;
-import zombie.core.skinnedmodel.population.OutfitManager;
-import zombie.core.skinnedmodel.visual.HumanVisual;
+import zombie.core.skinnedmodel.population.*;
 import zombie.core.skinnedmodel.visual.ItemVisuals;
 import zombie.core.stash.StashSystem;
-import zombie.core.textures.ColorInfo;
-import zombie.core.textures.Texture;
-import zombie.core.textures.TextureAssetManager;
-import zombie.core.textures.TextureID;
-import zombie.core.textures.TextureIDAssetManager;
+import zombie.core.textures.*;
 import zombie.core.utils.UpdateLimit;
 import zombie.core.znet.PortMapper;
 import zombie.core.znet.SteamGameServer;
@@ -126,84 +50,18 @@ import zombie.erosion.ErosionMain;
 import zombie.gameStates.IngameState;
 import zombie.globalObjects.SGlobalObjectNetwork;
 import zombie.globalObjects.SGlobalObjects;
-import zombie.inventory.CompressIdenticalItems;
-import zombie.inventory.InventoryItem;
-import zombie.inventory.InventoryItemFactory;
-import zombie.inventory.ItemContainer;
-import zombie.inventory.ItemPickerJava;
-import zombie.inventory.RecipeManager;
-import zombie.inventory.types.AlarmClock;
-import zombie.inventory.types.DrainableComboItem;
-import zombie.inventory.types.Food;
-import zombie.inventory.types.HandWeapon;
-import zombie.inventory.types.InventoryContainer;
-import zombie.inventory.types.Radio;
-import zombie.iso.BuildingDef;
-import zombie.iso.IsoCamera;
-import zombie.iso.IsoCell;
-import zombie.iso.IsoChunk;
-import zombie.iso.IsoChunkMap;
-import zombie.iso.IsoGridSquare;
-import zombie.iso.IsoMetaCell;
-import zombie.iso.IsoMetaGrid;
-import zombie.iso.IsoMovingObject;
-import zombie.iso.IsoObject;
-import zombie.iso.IsoUtils;
-import zombie.iso.IsoWorld;
-import zombie.iso.LosUtil;
-import zombie.iso.ObjectsSyncRequests;
-import zombie.iso.RoomDef;
-import zombie.iso.SpawnPoints;
-import zombie.iso.Vector2;
-import zombie.iso.Vector3;
+import zombie.inventory.*;
+import zombie.inventory.types.*;
+import zombie.iso.*;
 import zombie.iso.areas.NonPvpZone;
 import zombie.iso.areas.SafeHouse;
 import zombie.iso.areas.isoregion.IsoRegions;
-import zombie.iso.objects.BSFurnace;
-import zombie.iso.objects.IsoBarricade;
-import zombie.iso.objects.IsoCompost;
-import zombie.iso.objects.IsoDeadBody;
-import zombie.iso.objects.IsoDoor;
-import zombie.iso.objects.IsoFire;
-import zombie.iso.objects.IsoFireManager;
-import zombie.iso.objects.IsoGenerator;
-import zombie.iso.objects.IsoLightSwitch;
-import zombie.iso.objects.IsoMannequin;
-import zombie.iso.objects.IsoThumpable;
-import zombie.iso.objects.IsoTrap;
-import zombie.iso.objects.IsoWaveSignal;
-import zombie.iso.objects.IsoWindow;
-import zombie.iso.objects.IsoWorldInventoryObject;
-import zombie.iso.objects.RainManager;
+import zombie.iso.objects.*;
 import zombie.iso.sprite.IsoSprite;
 import zombie.iso.sprite.IsoSpriteManager;
 import zombie.iso.weather.ClimateManager;
 import zombie.network.chat.ChatServer;
-import zombie.network.packets.ActionPacket;
-import zombie.network.packets.AddXp;
-import zombie.network.packets.CleanBurn;
-import zombie.network.packets.DeadPlayerPacket;
-import zombie.network.packets.DeadZombiePacket;
-import zombie.network.packets.Disinfect;
-import zombie.network.packets.EventPacket;
-import zombie.network.packets.PlaySoundPacket;
-import zombie.network.packets.PlayWorldSoundPacket;
-import zombie.network.packets.PlayerDataRequestPacket;
-import zombie.network.packets.PlayerPacket;
-import zombie.network.packets.RemoveBullet;
-import zombie.network.packets.RemoveCorpseFromMap;
-import zombie.network.packets.RemoveGlass;
-import zombie.network.packets.RequestDataPacket;
-import zombie.network.packets.SafetyPacket;
-import zombie.network.packets.StartFire;
-import zombie.network.packets.Stitch;
-import zombie.network.packets.StopSoundPacket;
-import zombie.network.packets.SyncClothingPacket;
-import zombie.network.packets.SyncInjuriesPacket;
-import zombie.network.packets.SyncNonPvpZonePacket;
-import zombie.network.packets.SyncSafehousePacket;
-import zombie.network.packets.ValidatePacket;
-import zombie.network.packets.WaveSignal;
+import zombie.network.packets.*;
 import zombie.network.packets.hit.HitCharacterPacket;
 import zombie.popman.MPDebugInfo;
 import zombie.popman.NetworkZombieManager;
@@ -218,15 +76,26 @@ import zombie.util.PZSQLUtils;
 import zombie.util.PublicServerUtil;
 import zombie.util.StringUtils;
 import zombie.util.Type;
-import zombie.vehicles.BaseVehicle;
-import zombie.vehicles.Clipper;
-import zombie.vehicles.PolygonalMap2;
-import zombie.vehicles.VehicleManager;
-import zombie.vehicles.VehiclePart;
-import zombie.vehicles.VehiclesDB2;
+import zombie.vehicles.*;
 import zombie.world.moddata.GlobalModData;
 import zombie.worldMap.WorldMapRemotePlayer;
 import zombie.worldMap.WorldMapRemotePlayers;
+
+import java.io.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.net.ConnectException;
+import java.nio.ByteBuffer;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GameServer {
     public static ArrayList<String> actionsList;
@@ -301,8 +170,8 @@ public class GameServer {
     public static void PauseAllClients() {
         String var0 = "[SERVERMSG] Сервер сохраняет данные...Пожалуйста, подождите";
 
-        for(int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
-            UdpConnection var2 = (UdpConnection)udpEngine.connections.get(var1);
+        for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
+            UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
             ByteBufferWriter var3 = var2.startPacket();
             PacketTypes.PacketType.StartPause.doPacket(var3);
             var3.putUTF(var0);
@@ -314,8 +183,8 @@ public class GameServer {
     public static void UnPauseAllClients() {
         String var0 = "[SERVERMSG] Игра сохранена, наслаждайтесь :)";
 
-        for(int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
-            UdpConnection var2 = (UdpConnection)udpEngine.connections.get(var1);
+        for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
+            UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
             ByteBufferWriter var3 = var2.startPacket();
             PacketTypes.PacketType.StopPause.doPacket(var3);
             var3.putUTF(var0);
@@ -334,7 +203,7 @@ public class GameServer {
         } else {
             String[] var3 = var0[var1 + 1].trim().split("\\.");
             if (var3.length == 4) {
-                for(int var4 = 0; var4 < 4; ++var4) {
+                for (int var4 = 0; var4 < 4; ++var4) {
                     try {
                         int var5 = Integer.parseInt(var3[var4]);
                         if (var5 < 0 || var5 > 255) {
@@ -408,7 +277,7 @@ public class GameServer {
         bSoftReset = System.getProperty("softreset") != null;
 
         int var1;
-        for(var1 = 0; var1 < var0.length; ++var1) {
+        for (var1 = 0; var1 < var0.length; ++var1) {
             if (var0[var1] != null) {
                 if (var0[var1].startsWith("-cachedir=")) {
                     ZomboidFileSystem.instance.setCacheDir(var0[var1].replace("-cachedir=", "").trim());
@@ -468,7 +337,7 @@ public class GameServer {
         String var5;
         int var7;
         int var8;
-        for(var1 = 0; var1 < var0.length; ++var1) {
+        for (var1 = 0; var1 < var0.length; ++var1) {
             if (var0[var1] != null) {
                 String[] var75;
                 int var77;
@@ -477,7 +346,7 @@ public class GameServer {
                         var75 = var0[var1].replace("-debuglog=", "").split(",");
                         var77 = var75.length;
 
-                        for(var4 = 0; var4 < var77; ++var4) {
+                        for (var4 = 0; var4 < var77; ++var4) {
                             var5 = var75[var4];
 
                             try {
@@ -551,13 +420,13 @@ public class GameServer {
                     var75 = var0[var1].replace("-disablelog=", "").split(",");
                     var77 = var75.length;
 
-                    for(var4 = 0; var4 < var77; ++var4) {
+                    for (var4 = 0; var4 < var77; ++var4) {
                         var5 = var75[var4];
                         if ("All".equals(var5)) {
                             DebugType[] var6 = DebugType.values();
                             var7 = var6.length;
 
-                            for(var8 = 0; var8 < var7; ++var8) {
+                            for (var8 = 0; var8 < var7; ++var8) {
                                 DebugType var9 = var6[var8];
                                 DebugLog.setLogEnabled(var9, false);
                             }
@@ -638,7 +507,7 @@ public class GameServer {
                 String[] var82 = var81;
                 var83 = var81.length;
 
-                for(var7 = 0; var7 < var83; ++var7) {
+                for (var7 = 0; var7 < var83; ++var7) {
                     var88 = var82[var7];
                     if (!var88.trim().isEmpty()) {
                         ServerMods.add(var88.trim());
@@ -677,7 +546,7 @@ public class GameServer {
                 String[] var90 = var86;
                 int var91 = var86.length;
 
-                for(var10 = 0; var10 < var91; ++var10) {
+                for (var10 = 0; var10 < var91; ++var10) {
                     String var11 = var90[var10];
                     if (!StringUtils.isNullOrWhitespace(var11)) {
                         ++var83;
@@ -695,7 +564,7 @@ public class GameServer {
                     var95 = var93;
                     var97 = var93.length;
 
-                    for(var12 = 0; var12 < var97; ++var12) {
+                    for (var12 = 0; var12 < var97; ++var12) {
                         var13 = var95[var12];
                         if (var92.length() + 1 + var13.length() > 128) {
                             break;
@@ -723,7 +592,7 @@ public class GameServer {
                     var95 = var93;
                     var97 = var93.length;
 
-                    for(var12 = 0; var12 < var97; ++var12) {
+                    for (var12 = 0; var12 < var97; ++var12) {
                         var13 = var95[var12];
                         var13 = var13.trim();
                         if (!var13.isEmpty() && SteamUtils.isValidSteamID(var13)) {
@@ -737,7 +606,7 @@ public class GameServer {
                 SteamGameServer.EnableHeartBeats(true);
                 DebugLog.log("Waiting for response from Steam servers");
 
-                while(true) {
+                while (true) {
                     SteamUtils.runLoop();
                     var91 = SteamGameServer.GetSteamServersConnectState();
                     if (var91 == SteamGameServer.STEAM_SERVERS_CONNECTED) {
@@ -867,11 +736,11 @@ public class GameServer {
             float var94 = 0.0F;
             float[] var96 = new float[20];
 
-            for(var10 = 0; var10 < 20; ++var10) {
-                var96[var10] = (float)PerformanceSettings.getLockFPS();
+            for (var10 = 0; var10 < 20; ++var10) {
+                var96[var10] = (float) PerformanceSettings.getLockFPS();
             }
 
-            float var98 = (float)PerformanceSettings.getLockFPS();
+            float var98 = (float) PerformanceSettings.getLockFPS();
             long var99 = System.currentTimeMillis();
             long var100 = System.currentTimeMillis();
             if (!SteamUtils.isSteamModeEnabled()) {
@@ -890,45 +759,45 @@ public class GameServer {
 
             LuaManager.GlobalObject.refreshAnimSets(true);
 
-            while(!bDone) {
+            while (!bDone) {
                 try {
                     long var101 = System.nanoTime();
                     MPStatistics.countServerNetworkingFPS();
                     MainLoopNetData2.clear();
 
                     IZomboidPacket var19;
-                    for(var19 = (IZomboidPacket)MainLoopNetDataHighPriorityQ.poll(); var19 != null; var19 = (IZomboidPacket)MainLoopNetDataHighPriorityQ.poll()) {
+                    for (var19 = (IZomboidPacket) MainLoopNetDataHighPriorityQ.poll(); var19 != null; var19 = (IZomboidPacket) MainLoopNetDataHighPriorityQ.poll()) {
                         MainLoopNetData2.add(var19);
                     }
 
-                    MPStatistic.getInstance().setPacketsLength((long)MainLoopNetData2.size());
+                    MPStatistic.getInstance().setPacketsLength((long) MainLoopNetData2.size());
 
                     IZomboidPacket var20;
                     int var102;
-                    for(var102 = 0; var102 < MainLoopNetData2.size(); ++var102) {
-                        var20 = (IZomboidPacket)MainLoopNetData2.get(var102);
+                    for (var102 = 0; var102 < MainLoopNetData2.size(); ++var102) {
+                        var20 = (IZomboidPacket) MainLoopNetData2.get(var102);
                         UdpConnection var21;
                         if (var20.isConnect()) {
-                            var21 = ((GameServer.DelayedConnection)var20).connection;
-                            LoggerManager.getLogger("user").write("added connection index=" + var21.index + " " + ((GameServer.DelayedConnection)var20).hostString);
+                            var21 = ((GameServer.DelayedConnection) var20).connection;
+                            LoggerManager.getLogger("user").write("added connection index=" + var21.index + " " + ((GameServer.DelayedConnection) var20).hostString);
                             udpEngine.connections.add(var21);
                         } else if (var20.isDisconnect()) {
-                            var21 = ((GameServer.DelayedConnection)var20).connection;
+                            var21 = ((GameServer.DelayedConnection) var20).connection;
                             LoginQueue.disconnect(var21);
                             LoggerManager.getLogger("user").write(var21.idStr + " \"" + var21.username + "\" removed connection index=" + var21.index);
                             udpEngine.connections.remove(var21);
                             disconnect(var21, "receive-disconnect");
                         } else {
-                            mainLoopDealWithNetData((ZomboidNetData)var20);
+                            mainLoopDealWithNetData((ZomboidNetData) var20);
                         }
                     }
 
                     MainLoopPlayerUpdate.clear();
 
-                    for(var19 = (IZomboidPacket)MainLoopPlayerUpdateQ.poll(); var19 != null; var19 = (IZomboidPacket)MainLoopPlayerUpdateQ.poll()) {
-                        ZomboidNetData var103 = (ZomboidNetData)var19;
-                        long var105 = var103.connection * 4L + (long)var103.buffer.getShort(0);
-                        ZomboidNetData var23 = (ZomboidNetData)MainLoopPlayerUpdate.put(var105, var103);
+                    for (var19 = (IZomboidPacket) MainLoopPlayerUpdateQ.poll(); var19 != null; var19 = (IZomboidPacket) MainLoopPlayerUpdateQ.poll()) {
+                        ZomboidNetData var103 = (ZomboidNetData) var19;
+                        long var105 = var103.connection * 4L + (long) var103.buffer.getShort(0);
+                        ZomboidNetData var23 = (ZomboidNetData) MainLoopPlayerUpdate.put(var105, var103);
                         if (var23 != null) {
                             ZomboidNetDataPool.instance.discard(var23);
                         }
@@ -937,20 +806,20 @@ public class GameServer {
                     MainLoopNetData2.clear();
                     MainLoopNetData2.addAll(MainLoopPlayerUpdate.values());
                     MainLoopPlayerUpdate.clear();
-                    MPStatistic.getInstance().setPacketsLength((long)MainLoopNetData2.size());
+                    MPStatistic.getInstance().setPacketsLength((long) MainLoopNetData2.size());
 
-                    for(var102 = 0; var102 < MainLoopNetData2.size(); ++var102) {
-                        var20 = (IZomboidPacket)MainLoopNetData2.get(var102);
-                        GameServer.s_performance.mainLoopDealWithNetData.invokeAndMeasure((ZomboidNetData)var20, GameServer::mainLoopDealWithNetData);
+                    for (var102 = 0; var102 < MainLoopNetData2.size(); ++var102) {
+                        var20 = (IZomboidPacket) MainLoopNetData2.get(var102);
+                        GameServer.s_performance.mainLoopDealWithNetData.invokeAndMeasure((ZomboidNetData) var20, GameServer::mainLoopDealWithNetData);
                     }
 
                     MainLoopNetData2.clear();
 
-                    for(var19 = (IZomboidPacket)MainLoopNetDataQ.poll(); var19 != null; var19 = (IZomboidPacket)MainLoopNetDataQ.poll()) {
+                    for (var19 = (IZomboidPacket) MainLoopNetDataQ.poll(); var19 != null; var19 = (IZomboidPacket) MainLoopNetDataQ.poll()) {
                         MainLoopNetData2.add(var19);
                     }
 
-                    for(var102 = 0; var102 < MainLoopNetData2.size(); ++var102) {
+                    for (var102 = 0; var102 < MainLoopNetData2.size(); ++var102) {
                         if (var102 % 10 == 0 && (System.nanoTime() - var101) / 1000000L > 70L) {
                             if (droppedPackets == 0) {
                                 DebugLog.log("Server is too busy. Server will drop updates of vehicle's physics. Server is closed for new connections.");
@@ -961,8 +830,8 @@ public class GameServer {
                             break;
                         }
 
-                        var20 = (IZomboidPacket)MainLoopNetData2.get(var102);
-                        GameServer.s_performance.mainLoopDealWithNetData.invokeAndMeasure((ZomboidNetData)var20, GameServer::mainLoopDealWithNetData);
+                        var20 = (IZomboidPacket) MainLoopNetData2.get(var102);
+                        GameServer.s_performance.mainLoopDealWithNetData.invokeAndMeasure((ZomboidNetData) var20, GameServer::mainLoopDealWithNetData);
                     }
 
                     MainLoopNetData2.clear();
@@ -995,13 +864,13 @@ public class GameServer {
                             ServerMap.instance.preupdate();
                             MPStatistic.getInstance().ServerMapPreupdate.End();
                             int var104;
-                            synchronized(consoleCommands) {
-                                for(var104 = 0; var104 < consoleCommands.size(); ++var104) {
-                                    String var106 = (String)consoleCommands.get(var104);
+                            synchronized (consoleCommands) {
+                                for (var104 = 0; var104 < consoleCommands.size(); ++var104) {
+                                    String var106 = (String) consoleCommands.get(var104);
 
                                     try {
                                         if (CoopSlave.instance == null || !CoopSlave.instance.handleCommand(var106)) {
-                                            System.out.println(handleServerCommand(var106, (UdpConnection)null));
+                                            System.out.println(handleServerCommand(var106, (UdpConnection) null));
                                         }
                                     } catch (Exception var69) {
                                         var69.printStackTrace();
@@ -1031,8 +900,8 @@ public class GameServer {
                             var102 = 0;
                             var104 = 0;
 
-                            for(int var107 = 0; var107 < Players.size(); ++var107) {
-                                IsoPlayer var22 = (IsoPlayer)Players.get(var107);
+                            for (int var107 = 0; var107 < Players.size(); ++var107) {
+                                IsoPlayer var22 = (IsoPlayer) Players.get(var107);
                                 if (var22.isAlive()) {
                                     if (!IsoWorld.instance.CurrentCell.getObjectList().contains(var22)) {
                                         IsoWorld.instance.CurrentCell.getObjectList().add(var22);
@@ -1053,16 +922,16 @@ public class GameServer {
                             int var24;
                             int var108;
                             UdpConnection var110;
-                            for(var108 = 0; var108 < udpEngine.connections.size(); ++var108) {
-                                var110 = (UdpConnection)udpEngine.connections.get(var108);
+                            for (var108 = 0; var108 < udpEngine.connections.size(); ++var108) {
+                                var110 = (UdpConnection) udpEngine.connections.get(var108);
                                 if (var109) {
                                     var110.calcCountPlayersInRelevantPosition();
                                 }
 
-                                for(var24 = 0; var24 < 4; ++var24) {
+                                for (var24 = 0; var24 < 4; ++var24) {
                                     Vector3 var25 = var110.connectArea[var24];
                                     if (var25 != null) {
-                                        ServerMap.instance.characterIn((int)var25.x, (int)var25.y, (int)var25.z);
+                                        ServerMap.instance.characterIn((int) var25.x, (int) var25.y, (int) var25.z);
                                     }
 
                                     ClientServerMap.characterIn(var110, var24);
@@ -1073,8 +942,8 @@ public class GameServer {
                                 }
                             }
 
-                            for(var108 = 0; var108 < IsoWorld.instance.CurrentCell.getObjectList().size(); ++var108) {
-                                IsoMovingObject var112 = (IsoMovingObject)IsoWorld.instance.CurrentCell.getObjectList().get(var108);
+                            for (var108 = 0; var108 < IsoWorld.instance.CurrentCell.getObjectList().size(); ++var108) {
+                                IsoMovingObject var112 = (IsoMovingObject) IsoWorld.instance.CurrentCell.getObjectList().get(var108);
                                 if (var112 instanceof IsoPlayer && !Players.contains(var112)) {
                                     DebugLog.log("Disconnected player in CurrentCell.getObjectList() removed");
                                     IsoWorld.instance.CurrentCell.getObjectList().remove(var108--);
@@ -1083,8 +952,8 @@ public class GameServer {
 
                             ++var4;
                             if (var4 > 150) {
-                                for(var108 = 0; var108 < udpEngine.connections.size(); ++var108) {
-                                    var110 = (UdpConnection)udpEngine.connections.get(var108);
+                                for (var108 = 0; var108 < udpEngine.connections.size(); ++var108) {
+                                    var110 = (UdpConnection) udpEngine.connections.get(var108);
 
                                     try {
                                         if (var110.username == null && !var110.awaitingCoopApprove && !LoginQueue.isInTheQueue(var110) && var110.isConnectionAttemptTimeout()) {
@@ -1113,9 +982,9 @@ public class GameServer {
                             var100 = var99;
                             var99 = System.currentTimeMillis();
                             long var113 = var99 - var100;
-                            var94 = 1000.0F / (float)var113;
+                            var94 = 1000.0F / (float) var113;
                             if (!Float.isNaN(var94)) {
-                                var98 = (float)((double)var98 + Math.min((double)(var94 - var98) * 0.05D, 1.0D));
+                                var98 = (float) ((double) var98 + Math.min((double) (var94 - var98) * 0.05D, 1.0D));
                             }
 
                             GameTime.instance.FPSMultiplier = 60.0F / var98;
@@ -1126,8 +995,8 @@ public class GameServer {
                                 PublicServerUtil.updatePlayerCountIfChanged();
                             }
 
-                            for(var24 = 0; var24 < udpEngine.connections.size(); ++var24) {
-                                UdpConnection var114 = (UdpConnection)udpEngine.connections.get(var24);
+                            for (var24 = 0; var24 < udpEngine.connections.size(); ++var24) {
+                                UdpConnection var114 = (UdpConnection) udpEngine.connections.get(var24);
                                 if (var114.checksumState == UdpConnection.ChecksumState.Different && var114.checksumTime + 8000L < System.currentTimeMillis()) {
                                     DebugLog.log("timed out connection because checksum was different");
                                     var114.checksumState = UdpConnection.ChecksumState.Init;
@@ -1135,10 +1004,10 @@ public class GameServer {
                                 } else {
                                     var114.validator.update();
                                     if (!var114.chunkObjectState.isEmpty()) {
-                                        for(int var26 = 0; var26 < var114.chunkObjectState.size(); var26 += 2) {
+                                        for (int var26 = 0; var26 < var114.chunkObjectState.size(); var26 += 2) {
                                             short var27 = var114.chunkObjectState.get(var26);
                                             short var28 = var114.chunkObjectState.get(var26 + 1);
-                                            if (!var114.RelevantTo((float)(var27 * 10 + 5), (float)(var28 * 10 + 5), (float)(var114.ChunkGridWidth * 4 * 10))) {
+                                            if (!var114.RelevantTo((float) (var27 * 10 + 5), (float) (var28 * 10 + 5), (float) (var114.ChunkGridWidth * 4 * 10))) {
                                                 var114.chunkObjectState.remove(var26, 2);
                                                 var26 -= 2;
                                             }
@@ -1199,7 +1068,7 @@ public class GameServer {
                 try {
                     BufferedReader var0 = new BufferedReader(new InputStreamReader(System.in));
 
-                    while(true) {
+                    while (true) {
                         String var1 = var0.readLine();
                         if (var1 == null) {
                             consoleCommands.add("process-status@eof");
@@ -1208,7 +1077,7 @@ public class GameServer {
 
                         if (!var1.isEmpty()) {
                             System.out.println("command entered via server console (System.in): \"" + var1 + "\"");
-                            synchronized(consoleCommands) {
+                            synchronized (consoleCommands) {
                                 consoleCommands.add(var1);
                             }
                         }
@@ -1223,7 +1092,7 @@ public class GameServer {
 
     public static String rcon(String var0) {
         try {
-            return handleServerCommand(var0, (UdpConnection)null);
+            return handleServerCommand(var0, (UdpConnection) null);
         } catch (Throwable var2) {
             var2.printStackTrace();
             return null;
@@ -1250,7 +1119,7 @@ public class GameServer {
                 Constructor var5 = var4.getConstructors()[0];
 
                 try {
-                    CommandBase var6 = (CommandBase)var5.newInstance(var2, var3, var0, var1);
+                    CommandBase var6 = (CommandBase) var5.newInstance(var2, var3, var0, var1);
                     return var6.Execute();
                 } catch (InvocationTargetException var7) {
                     var7.printStackTrace();
@@ -1278,7 +1147,7 @@ public class GameServer {
         } else {
             ByteBufferWriter var5 = var4.startPacket();
             PacketTypes.PacketType.Teleport.doPacket(var5);
-            var5.putByte((byte)0);
+            var5.putByte((byte) 0);
             var5.putFloat(var1);
             var5.putFloat(var2);
             var5.putFloat(var3);
@@ -1301,7 +1170,7 @@ public class GameServer {
             if (var8 != null) {
                 ByteBufferWriter var9 = var8.startPacket();
                 PacketTypes.PacketType.Teleport.doPacket(var9);
-                var9.putByte((byte)var7.PlayerIndex);
+                var9.putByte((byte) var7.PlayerIndex);
                 var9.putFloat(var4);
                 var9.putFloat(var5);
                 var9.putFloat(var6);
@@ -1313,7 +1182,7 @@ public class GameServer {
                 if (var7.isAsleep()) {
                     var7.setAsleep(false);
                     var7.setAsleepTime(0.0F);
-                    sendWakeUpPlayer(var7, (UdpConnection)null);
+                    sendWakeUpPlayer(var7, (UdpConnection) null);
                 }
 
             }
@@ -1321,17 +1190,17 @@ public class GameServer {
     }
 
     public static void sendPlayerExtraInfo(IsoPlayer var0, UdpConnection var1) {
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
             ByteBufferWriter var4 = var3.startPacket();
             PacketTypes.PacketType.ExtraInfo.doPacket(var4);
             var4.putShort(var0.OnlineID);
             var4.putUTF(var0.accessLevel);
-            var4.putByte((byte)(var0.isGodMod() ? 1 : 0));
-            var4.putByte((byte)(var0.isGhostMode() ? 1 : 0));
-            var4.putByte((byte)(var0.isInvisible() ? 1 : 0));
-            var4.putByte((byte)(var0.isNoClip() ? 1 : 0));
-            var4.putByte((byte)(var0.isShowAdminTag() ? 1 : 0));
+            var4.putByte((byte) (var0.isGodMod() ? 1 : 0));
+            var4.putByte((byte) (var0.isGhostMode() ? 1 : 0));
+            var4.putByte((byte) (var0.isInvisible() ? 1 : 0));
+            var4.putByte((byte) (var0.isNoClip() ? 1 : 0));
+            var4.putByte((byte) (var0.isShowAdminTag() ? 1 : 0));
             PacketTypes.PacketType.ExtraInfo.send(var3);
         }
 
@@ -1367,13 +1236,13 @@ public class GameServer {
                 PacketTypes.PacketType.AddXP.onUnauthorized(var1);
             } else {
                 var3.process();
-                if (canModifyPlayerStats(var1, (IsoPlayer)null)) {
+                if (canModifyPlayerStats(var1, (IsoPlayer) null)) {
                     var3.target.getCharacter().getXp().recalcSumm();
                 }
 
-                for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                    UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
-                    if (var5.getConnectedGUID() != var1.getConnectedGUID() && var5.getConnectedGUID() == (Long)PlayerToAddressMap.get(var3.target.getCharacter())) {
+                for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                    UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
+                    if (var5.getConnectedGUID() != var1.getConnectedGUID() && var5.getConnectedGUID() == (Long) PlayerToAddressMap.get(var3.target.getCharacter())) {
                         ByteBufferWriter var6 = var5.startPacket();
                         PacketTypes.PacketType.AddXP.doPacket(var6);
                         var3.write(var6);
@@ -1396,15 +1265,15 @@ public class GameServer {
     /*--- Синхронизация XP (Опыт навыков) и Levels (Уровни навыков) ---*/
     static void receiveSyncXP(ByteBuffer var0, UdpConnection var1, short var2) {
 
-        IsoPlayer var3 = (IsoPlayer)IDToPlayerMap.get(var0.getShort());
+        IsoPlayer var3 = (IsoPlayer) IDToPlayerMap.get(var0.getShort());
         float needXPForLevelUp = 0.0f;
 
         if (var3 != null) {
             /*-- Записываем старые данные XP и уровней --*/
-            ArrayList<IsoGameCharacter.PerkInfo> perkArrayOld= var3.getPerkList();
+            ArrayList<IsoGameCharacter.PerkInfo> perkArrayOld = var3.getPerkList();
             ArrayList<Float> xpArrayOld = null;
-            for (int l = 0; l < perkArrayOld.size(); l++){
-                xpArrayOld.add(l,var3.getXp().getXP(perkArrayOld.get(l).perk));
+            for (int l = 0; l < perkArrayOld.size(); l++) {
+                xpArrayOld.add(l, var3.getXp().getXP(perkArrayOld.get(l).perk));
             }
 
             if (!canModifyPlayerStats(var1, var3)) {
@@ -1418,8 +1287,8 @@ public class GameServer {
                     }
 
 
-                    for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                        UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+                    for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                        UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
                         if (var5.getConnectedGUID() != var1.getConnectedGUID()) {
                             ByteBufferWriter var6 = var5.startPacket();
                             PacketTypes.PacketType.SyncXP.doPacket(var6);
@@ -1449,19 +1318,19 @@ public class GameServer {
             }*/
 
 
-             ArrayList<IsoGameCharacter.PerkInfo> perkArrayNew= var3.getPerkList();
-             ArrayList<Float> xpArrayNew = null;
+            ArrayList<IsoGameCharacter.PerkInfo> perkArrayNew = var3.getPerkList();
+            ArrayList<Float> xpArrayNew = null;
 
-             for (int k = 0; k < perkArrayNew.size(); k++){
-               xpArrayNew.add(k,var3.getXp().getXP(perkArrayNew.get(k).perk));
-             }
-             int oldPerkLevel = 0;
-             int newPerkLevel = 0;
-             float oldXP = 0.0f;
-             float newXP = 0.0f;
+            for (int k = 0; k < perkArrayNew.size(); k++) {
+                xpArrayNew.add(k, var3.getXp().getXP(perkArrayNew.get(k).perk));
+            }
+            int oldPerkLevel = 0;
+            int newPerkLevel = 0;
+            float oldXP = 0.0f;
+            float newXP = 0.0f;
 
-             for (int n = 0; n < perkArrayNew.size(); n++) {
-                 switch (perkArrayOld.get(n).getLevel()) {
+            for (int n = 0; n < perkArrayNew.size(); n++) {
+                switch (perkArrayOld.get(n).getLevel()) {
                     case 1:
                         needXPForLevelUp = 75.0F;
                         break;
@@ -1501,11 +1370,29 @@ public class GameServer {
                 newXP = xpArrayNew.get(n);
 
                 /*- Проверка на понижение УРОВНЕЙ навыков-*/
-                 /*TODO: сделать доп проверку на то сколько прожил игрок, иначе
+                /*TODO: сделать доп проверку на то сколько прожил игрок, иначе
                  * когда игрок умирает - игра может засчитать будто он понизил навыки  */
-                 if (oldPerkLevel > newPerkLevel) {
-                     DebugLog.log("<AntiPerk>: игрок " + var1.username + " понизил навыки !");
-                 } else {
+
+
+                IsoCell isoCellInstance = IsoCell.getInstance();
+                IsoPlayer isoPlayerInstance = new IsoPlayer(isoCellInstance);
+
+                if (var1.username != null && var1.username.isEmpty()) {
+                    double hoursSurvived = isoPlayerInstance.getHoursSurvived();
+
+                    if (hoursSurvived < 2.0) {
+                        DebugLog.log("<AntiPerk>: Игрок " + var1.username + "прожил менее двух часов");
+                    } else {
+                        DebugLog.log("<AntiPerk>: Игрок " + var1.username + "прожил два часа или более");
+                    }
+                    String timeSurvived = isoPlayerInstance.getTimeSurvived();
+                    DebugLog.log("<AntiPerk>: Время, проведенное игроком " + var1.username + timeSurvived);
+                }
+
+
+                if (oldPerkLevel > newPerkLevel) {
+                    DebugLog.log("<AntiPerk>: игрок " + var1.username + " понизил навыки !");
+                } else {
 
                 /*-- Проверка на то, что игрок не накрутил себе просто так уровень
                   -- проверяет, не равны ли XP прошлого уровня и старого  --*/
@@ -1531,19 +1418,18 @@ public class GameServer {
     }
 
 
-
     static void receiveChangePlayerStats(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
-        IsoPlayer var4 = (IsoPlayer)IDToPlayerMap.get(var3);
+        IsoPlayer var4 = (IsoPlayer) IDToPlayerMap.get(var3);
         if (var4 != null) {
             String var5 = GameWindow.ReadString(var0);
             var4.setPlayerStats(var0, var5);
 
 
-            for(int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
-                UdpConnection var7 = (UdpConnection)udpEngine.connections.get(var6);
+            for (int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
+                UdpConnection var7 = (UdpConnection) udpEngine.connections.get(var6);
                 if (var7.getConnectedGUID() != var1.getConnectedGUID()) {
-                    if (var7.getConnectedGUID() == (Long)PlayerToAddressMap.get(var4)) {
+                    if (var7.getConnectedGUID() == (Long) PlayerToAddressMap.get(var4)) {
                         var7.allChatMuted = var4.isAllChatMuted();
                         var7.accessLevel = PlayerType.fromString(var4.accessLevel);
                     }
@@ -1593,7 +1479,7 @@ public class GameServer {
             ModelManager.instance.create();
             System.out.println("LOADING ASSETS: START");
 
-            while(GameWindow.fileSystem.hasWork()) {
+            while (GameWindow.fileSystem.hasWork()) {
                 GameWindow.fileSystem.updateAsyncTransactions();
             }
 
@@ -1657,12 +1543,12 @@ public class GameServer {
                 RakNetPeerInterface var1 = udpEngine.getPeer();
                 CoopSlave var10000 = CoopSlave.instance;
                 String var10003 = var1.GetServerIP();
-                var10000.sendMessage("server-address", (String)null, var10003 + ":" + DEFAULT_PORT);
+                var10000.sendMessage("server-address", (String) null, var10003 + ":" + DEFAULT_PORT);
                 long var2 = SteamGameServer.GetSteamID();
-                CoopSlave.instance.sendMessage("steam-id", (String)null, SteamUtils.convertSteamIDToString(var2));
+                CoopSlave.instance.sendMessage("steam-id", (String) null, SteamUtils.convertSteamIDToString(var2));
             } else {
                 var5 = "127.0.0.1";
-                CoopSlave.instance.sendMessage("server-address", (String)null, var5 + ":" + DEFAULT_PORT);
+                CoopSlave.instance.sendMessage("server-address", (String) null, var5 + ":" + DEFAULT_PORT);
             }
         }
 
@@ -1697,7 +1583,7 @@ public class GameServer {
                     }
 
                     if (var2.username == null) {
-                        switch(var0.type) {
+                        switch (var0.type) {
                             case Login:
                             case Ping:
                             case ScoreboardUpdate:
@@ -1730,11 +1616,11 @@ public class GameServer {
     static void receiveInvMngRemoveItem(ByteBuffer var0, UdpConnection var1, short var2) {
         int var3 = var0.getInt();
         short var4 = var0.getShort();
-        IsoPlayer var5 = (IsoPlayer)IDToPlayerMap.get(var4);
+        IsoPlayer var5 = (IsoPlayer) IDToPlayerMap.get(var4);
         if (var5 != null) {
-            for(int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
-                UdpConnection var7 = (UdpConnection)udpEngine.connections.get(var6);
-                if (var7.getConnectedGUID() != var1.getConnectedGUID() && var7.getConnectedGUID() == (Long)PlayerToAddressMap.get(var5)) {
+            for (int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
+                UdpConnection var7 = (UdpConnection) udpEngine.connections.get(var6);
+                if (var7.getConnectedGUID() != var1.getConnectedGUID() && var7.getConnectedGUID() == (Long) PlayerToAddressMap.get(var5)) {
                     ByteBufferWriter var8 = var7.startPacket();
                     PacketTypes.PacketType.InvMngRemoveItem.doPacket(var8);
                     var8.putInt(var3);
@@ -1749,11 +1635,11 @@ public class GameServer {
     static void receiveInvMngGetItem(ByteBuffer var0, UdpConnection var1, short var2) throws IOException {
 
         short var3 = var0.getShort();
-        IsoPlayer var4 = (IsoPlayer)IDToPlayerMap.get(var3);
+        IsoPlayer var4 = (IsoPlayer) IDToPlayerMap.get(var3);
         if (var4 != null) {
-            for(int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
-                UdpConnection var6 = (UdpConnection)udpEngine.connections.get(var5);
-                if (var6.getConnectedGUID() != var1.getConnectedGUID() && var6.getConnectedGUID() == (Long)PlayerToAddressMap.get(var4)) {
+            for (int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
+                UdpConnection var6 = (UdpConnection) udpEngine.connections.get(var5);
+                if (var6.getConnectedGUID() != var1.getConnectedGUID() && var6.getConnectedGUID() == (Long) PlayerToAddressMap.get(var4)) {
                     ByteBufferWriter var7 = var6.startPacket();
                     PacketTypes.PacketType.InvMngGetItem.doPacket(var7);
                     var0.rewind();
@@ -1778,18 +1664,18 @@ public class GameServer {
 
         short var5 = var0.getShort();
         short var6 = var0.getShort();
-        IsoPlayer var7 = (IsoPlayer)IDToPlayerMap.get(var6);
+        IsoPlayer var7 = (IsoPlayer) IDToPlayerMap.get(var6);
         if (var7 != null) {
-            for(int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
-                UdpConnection var9 = (UdpConnection)udpEngine.connections.get(var8);
-                if (var9.getConnectedGUID() != var1.getConnectedGUID() && var9.getConnectedGUID() == (Long)PlayerToAddressMap.get(var7)) {
+            for (int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
+                UdpConnection var9 = (UdpConnection) udpEngine.connections.get(var8);
+                if (var9.getConnectedGUID() != var1.getConnectedGUID() && var9.getConnectedGUID() == (Long) PlayerToAddressMap.get(var7)) {
                     ByteBufferWriter var10 = var9.startPacket();
                     PacketTypes.PacketType.InvMngReqItem.doPacket(var10);
                     if (var4 != null) {
-                        var10.putByte((byte)1);
+                        var10.putByte((byte) 1);
                         var10.putUTF(var4);
                     } else {
-                        var10.putByte((byte)0);
+                        var10.putByte((byte) 0);
                         var10.putInt(var3);
                     }
 
@@ -1822,7 +1708,7 @@ public class GameServer {
             int var3 = var0.getInt();
             int var4 = var0.getInt();
             int var5 = var0.getInt();
-            var1.connectArea[0] = new Vector3((float)var3, (float)var4, (float)var5);
+            var1.connectArea[0] = new Vector3((float) var3, (float) var4, (float) var5);
             var1.ChunkGridWidth = var5;
             ZombiePopulationManager.instance.updateLoadedAreas();
         }
@@ -1881,8 +1767,8 @@ public class GameServer {
         ServerWorldDatabase.LogonResult var13;
         ByteBufferWriter var17;
         if (CoopSlave.instance != null && SteamUtils.isSteamModeEnabled()) {
-            for(int var14 = 0; var14 < udpEngine.connections.size(); ++var14) {
-                UdpConnection var18 = (UdpConnection)udpEngine.connections.get(var14);
+            for (int var14 = 0; var14 < udpEngine.connections.size(); ++var14) {
+                UdpConnection var18 = (UdpConnection) udpEngine.connections.get(var14);
                 if (var18 != var1 && var18.steamID == var1.steamID) {
                     LoggerManager.getLogger("user").write("access denied: user \"" + var3 + "\" already connected");
                     var17 = var1.startPacket();
@@ -1935,10 +1821,10 @@ public class GameServer {
             ByteBufferWriter var16;
             if (var13.bAuthorized) {
                 int var7;
-                for(var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                    UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+                for (var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                    UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
 
-                    for(int var9 = 0; var9 < 4; ++var9) {
+                    for (int var9 = 0; var9 < 4; ++var9) {
                         if (var3.equals(var8.usernames[var9])) {
                             LoggerManager.getLogger("user").write("access denied: user \"" + var3 + "\" already connected");
                             ByteBufferWriter var10 = var1.startPacket();
@@ -1988,7 +1874,7 @@ public class GameServer {
 
                 var7 = var1.getAveragePing();
                 DebugLog.Multiplayer.debugln("User %s ping %d ms", var1.username, var7);
-                if (MPStatistics.doKickWhileLoading(var1, (long)var7)) {
+                if (MPStatistics.doKickWhileLoading(var1, (long) var7)) {
                     var17 = var1.startPacket();
                     PacketTypes.PacketType.AccessDenied.doPacket(var17);
                     LoggerManager.getLogger("user").write("access denied: user \"" + var3 + "\" ping is too high");
@@ -2052,10 +1938,10 @@ public class GameServer {
 
     static void receiveSendInventory(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
-        Long var4 = (Long)IDToAddressMap.get(var3);
+        Long var4 = (Long) IDToAddressMap.get(var3);
         if (var4 != null) {
-            for(int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
-                UdpConnection var6 = (UdpConnection)udpEngine.connections.get(var5);
+            for (int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
+                UdpConnection var6 = (UdpConnection) udpEngine.connections.get(var5);
                 if (var6.getConnectedGUID() == var4) {
                     ByteBufferWriter var7 = var6.startPacket();
                     PacketTypes.PacketType.SendInventory.doPacket(var7);
@@ -2075,10 +1961,10 @@ public class GameServer {
     static void receiveRequestInventory(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
         short var4 = var0.getShort();
-        Long var5 = (Long)IDToAddressMap.get(var4);
+        Long var5 = (Long) IDToAddressMap.get(var4);
         if (var5 != null) {
-            for(int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
-                UdpConnection var7 = (UdpConnection)udpEngine.connections.get(var6);
+            for (int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
+                UdpConnection var7 = (UdpConnection) udpEngine.connections.get(var6);
                 if (var7.getConnectedGUID() == var5) {
                     ByteBufferWriter var8 = var7.startPacket();
                     PacketTypes.PacketType.RequestInventory.doPacket(var8);
@@ -2119,8 +2005,8 @@ public class GameServer {
     }
 
     public static void sendShortStatistic() {
-        for(int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
-            UdpConnection var1 = (UdpConnection)udpEngine.connections.get(var0);
+        for (int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
+            UdpConnection var1 = (UdpConnection) udpEngine.connections.get(var0);
             if (var1.statistic.enable == 3) {
                 sendShortStatistic(var1);
             }
@@ -2142,8 +2028,8 @@ public class GameServer {
     }
 
     public static void sendStatistic() {
-        for(int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
-            UdpConnection var1 = (UdpConnection)udpEngine.connections.get(var0);
+        for (int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
+            UdpConnection var1 = (UdpConnection) udpEngine.connections.get(var0);
             if (var1.statistic.enable == 1) {
                 sendStatistic(var1);
             }
@@ -2169,8 +2055,8 @@ public class GameServer {
         try {
             Iterator var0 = udpEngine.connections.iterator();
 
-            while(var0.hasNext()) {
-                UdpConnection var1 = (UdpConnection)var0.next();
+            while (var0.hasNext()) {
+                UdpConnection var1 = (UdpConnection) var0.next();
                 ByteBufferWriter var2 = var1.startPacket();
                 PacketTypes.PacketType.Statistic.doPacket(var2);
                 var2.putLong(System.currentTimeMillis());
@@ -2202,7 +2088,7 @@ public class GameServer {
 
     static void receivePlayerUpdate(ByteBuffer var0, UdpConnection var1, short var2) {
         if (var1.checksumState != UdpConnection.ChecksumState.Done) {
-            kick(var1, "UI_Policy_Kick", (String)null);
+            kick(var1, "UI_Policy_Kick", (String) null);
             var1.forceDisconnect("kick-checksum");
         } else {
             PlayerPacket var3 = PlayerPacket.l_receive.playerPacket;
@@ -2218,7 +2104,7 @@ public class GameServer {
                         PacketValidator.doBanUser(var1, "Любищь читерить админку?)", "Type12");
                     }
 
-                    if (!var4.networkAI.checkPosition(var1, var4, (float)PZMath.fastfloor(var3.realx), (float)PZMath.fastfloor(var3.realy))) {
+                    if (!var4.networkAI.checkPosition(var1, var4, (float) PZMath.fastfloor(var3.realx), (float) PZMath.fastfloor(var3.realy))) {
                         return;
                     }
 
@@ -2227,13 +2113,13 @@ public class GameServer {
                     }
 
                     var4.bleedingLevel = var3.bleedingLevel;
-                    if (var4.networkAI.distance.getLength() > (float)IsoChunkMap.ChunkWidthInTiles) {
+                    if (var4.networkAI.distance.getLength() > (float) IsoChunkMap.ChunkWidthInTiles) {
                         MPStatistic.getInstance().teleport();
                     }
 
                     var1.ReleventPos[var4.PlayerIndex].x = var3.realx;
                     var1.ReleventPos[var4.PlayerIndex].y = var3.realy;
-                    var1.ReleventPos[var4.PlayerIndex].z = (float)var3.realz;
+                    var1.ReleventPos[var4.PlayerIndex].z = (float) var3.realz;
                     var3.id = var4.getOnlineID();
                 }
             } catch (Exception var8) {
@@ -2241,7 +2127,7 @@ public class GameServer {
             }
 
             if (ServerOptions.instance.KickFastPlayers.getValue()) {
-                Vector2 var5 = (Vector2)playerToCoordsMap.get(Integer.valueOf(var3.id));
+                Vector2 var5 = (Vector2) playerToCoordsMap.get(Integer.valueOf(var3.id));
                 if (var5 == null) {
                     var5 = new Vector2();
                     var5.x = var3.x;
@@ -2252,15 +2138,15 @@ public class GameServer {
                         if (playerMovedToFastMap.get(var3.id) == null) {
                             playerMovedToFastMap.put(var3.id, 1);
                         } else {
-                            playerMovedToFastMap.put(var3.id, (Integer)playerMovedToFastMap.get(Integer.valueOf(var3.id)) + 1);
+                            playerMovedToFastMap.put(var3.id, (Integer) playerMovedToFastMap.get(Integer.valueOf(var3.id)) + 1);
                         }
 
                         ZLogger var10000 = LoggerManager.getLogger("admin");
                         String var10001 = var4.getDisplayName();
                         var10000.write(var10001 + " go too fast (" + playerMovedToFastMap.get(Integer.valueOf(var3.id)) + " times)");
-                        if ((Integer)playerMovedToFastMap.get(var3.id) == 10) {
+                        if ((Integer) playerMovedToFastMap.get(var3.id) == 10) {
                             LoggerManager.getLogger("admin").write(var4.getDisplayName() + " kicked for going too fast");
-                            kick(var1, "UI_Policy_Kick", (String)null);
+                            kick(var1, "UI_Policy_Kick", (String) null);
                             var1.forceDisconnect("kick-fast-player");
                             return;
                         }
@@ -2272,16 +2158,16 @@ public class GameServer {
             }
 
             if (var4 != null) {
-                for(int var9 = 0; var9 < udpEngine.connections.size(); ++var9) {
-                    UdpConnection var6 = (UdpConnection)udpEngine.connections.get(var9);
+                for (int var9 = 0; var9 < udpEngine.connections.size(); ++var9) {
+                    UdpConnection var6 = (UdpConnection) udpEngine.connections.get(var9);
                     if (var1.getConnectedGUID() != var6.getConnectedGUID() && var6.isFullyConnected() && (var4.checkCanSeeClient(var6) && var6.RelevantTo(var3.x, var3.y) || var2 == PacketTypes.PacketType.PlayerUpdateReliable.getId() && (var6.accessLevel > var1.accessLevel || var1.accessLevel == 32))) {
                         ByteBufferWriter var7 = var6.startPacket();
-                        ((PacketTypes.PacketType)PacketTypes.packetTypes.get(var2)).doPacket(var7);
+                        ((PacketTypes.PacketType) PacketTypes.packetTypes.get(var2)).doPacket(var7);
                         var0.position(0);
                         var0.position(2);
                         var7.bb.putShort(var4.getOnlineID());
                         var7.bb.put(var0);
-                        ((PacketTypes.PacketType)PacketTypes.packetTypes.get(var2)).send(var6);
+                        ((PacketTypes.PacketType) PacketTypes.packetTypes.get(var2)).send(var6);
                     }
                 }
             }
@@ -2295,8 +2181,8 @@ public class GameServer {
         var3.putInt(PacketTypes.packetTypes.size());
         Iterator var4 = PacketTypes.packetTypes.values().iterator();
 
-        while(var4.hasNext()) {
-            PacketTypes.PacketType var5 = (PacketTypes.PacketType)var4.next();
+        while (var4.hasNext()) {
+            PacketTypes.PacketType var5 = (PacketTypes.PacketType) var4.next();
             var3.putShort(var5.getId());
             var3.putLong(var5.serverPacketCount);
         }
@@ -2311,8 +2197,8 @@ public class GameServer {
             SandboxOptions.instance.toLua();
             SandboxOptions.instance.saveServerLuaFile(ServerName);
 
-            for(int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
-                UdpConnection var4 = (UdpConnection)udpEngine.connections.get(var3);
+            for (int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
+                UdpConnection var4 = (UdpConnection) udpEngine.connections.get(var3);
                 ByteBufferWriter var5 = var4.startPacket();
                 PacketTypes.PacketType.SandboxOptions.doPacket(var5);
                 var0.rewind();
@@ -2362,10 +2248,10 @@ public class GameServer {
         short var3 = var0.getShort();
         short var4 = var0.getShort();
         int var5 = var0.getInt();
-        Long var6 = (Long)IDToAddressMap.get(var4);
+        Long var6 = (Long) IDToAddressMap.get(var4);
         if (var6 != null) {
-            for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+            for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
                 if (var8.getConnectedGUID() == var6) {
                     ByteBufferWriter var9 = var8.startPacket();
                     PacketTypes.PacketType.TradingUIRemoveItem.doPacket(var9);
@@ -2383,10 +2269,10 @@ public class GameServer {
         short var3 = var0.getShort();
         short var4 = var0.getShort();
         int var5 = var0.getInt();
-        Long var6 = (Long)IDToAddressMap.get(var4);
+        Long var6 = (Long) IDToAddressMap.get(var4);
         if (var6 != null) {
-            for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+            for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
                 if (var8.getConnectedGUID() == var6) {
                     ByteBufferWriter var9 = var8.startPacket();
                     PacketTypes.PacketType.TradingUIUpdateState.doPacket(var9);
@@ -2413,10 +2299,10 @@ public class GameServer {
         }
 
         if (var5 != null) {
-            Long var6 = (Long)IDToAddressMap.get(var4);
+            Long var6 = (Long) IDToAddressMap.get(var4);
             if (var6 != null) {
-                for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                    UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+                for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                    UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
                     if (var8.getConnectedGUID() == var6) {
                         ByteBufferWriter var9 = var8.startPacket();
                         PacketTypes.PacketType.TradingUIAddItem.doPacket(var9);
@@ -2441,14 +2327,14 @@ public class GameServer {
         short var3 = var0.getShort();
         short var4 = var0.getShort();
         byte var5 = var0.get();
-        Long var6 = (Long)IDToAddressMap.get(var3);
+        Long var6 = (Long) IDToAddressMap.get(var3);
         if (var5 == 0) {
-            var6 = (Long)IDToAddressMap.get(var4);
+            var6 = (Long) IDToAddressMap.get(var4);
         }
 
         if (var6 != null) {
-            for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+            for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
                 if (var8.getConnectedGUID() == var6) {
                     ByteBufferWriter var9 = var8.startPacket();
                     PacketTypes.PacketType.RequestTrading.doPacket(var9);
@@ -2485,7 +2371,7 @@ public class GameServer {
             var6.setTagColor(new ColorInfo(var0.getFloat(), var0.getFloat(), var0.getFloat(), 1.0F));
         }
 
-        for(int var8 = 0; var8 < var5; ++var8) {
+        for (int var8 = 0; var8 < var5; ++var8) {
             String var9 = GameWindow.ReadString(var0);
             var6.getPlayers().add(var9);
         }
@@ -2512,8 +2398,8 @@ public class GameServer {
             DebugLog.log("faction: removed " + var3 + " owner=" + var6.getOwner());
         }
 
-        for(int var13 = 0; var13 < udpEngine.connections.size(); ++var13) {
-            UdpConnection var10 = (UdpConnection)udpEngine.connections.get(var13);
+        for (int var13 = 0; var13 < udpEngine.connections.size(); ++var13) {
+            UdpConnection var10 = (UdpConnection) udpEngine.connections.get(var13);
             if (var1 == null || var10.getConnectedGUID() != var1.getConnectedGUID()) {
                 ByteBufferWriter var11 = var10.startPacket();
                 PacketTypes.PacketType.SyncFaction.doPacket(var11);
@@ -2540,8 +2426,8 @@ public class GameServer {
     }
 
     public static void sendNonPvpZone(NonPvpZone var0, boolean var1, UdpConnection var2) {
-        for(int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
-            UdpConnection var4 = (UdpConnection)udpEngine.connections.get(var3);
+        for (int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
+            UdpConnection var4 = (UdpConnection) udpEngine.connections.get(var3);
             if (var2 == null || var4.getConnectedGUID() != var2.getConnectedGUID()) {
                 ByteBufferWriter var5 = var4.startPacket();
                 PacketTypes.PacketType.SyncNonPvpZone.doPacket(var5);
@@ -2562,8 +2448,8 @@ public class GameServer {
             float var7 = var0.getFloat();
             var4.setSpeakColourInfo(new ColorInfo(var5, var6, var7, 1.0F));
 
-            for(int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
-                UdpConnection var9 = (UdpConnection)udpEngine.connections.get(var8);
+            for (int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
+                UdpConnection var9 = (UdpConnection) udpEngine.connections.get(var8);
                 if (var9.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var10 = var9.startPacket();
                     PacketTypes.PacketType.ChangeTextColor.doPacket(var10);
@@ -2582,7 +2468,7 @@ public class GameServer {
     static void receiveTransactionID(ByteBuffer var0, UdpConnection var1) {
         short var2 = var0.getShort();
         int var3 = var0.getInt();
-        IsoPlayer var4 = (IsoPlayer)IDToPlayerMap.get(var2);
+        IsoPlayer var4 = (IsoPlayer) IDToPlayerMap.get(var2);
         if (var4 != null) {
             transactionIDMap.put(var4.username, var3);
             var4.setTransactionID(var3);
@@ -2611,9 +2497,9 @@ public class GameServer {
     }
 
     public static void sendCompost(IsoCompost var0, UdpConnection var1) {
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
-            if (var3.RelevantTo((float)var0.square.x, (float)var0.square.y) && (var1 != null && var3.getConnectedGUID() != var1.getConnectedGUID() || var1 == null)) {
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
+            if (var3.RelevantTo((float) var0.square.x, (float) var0.square.y) && (var1 != null && var3.getConnectedGUID() != var1.getConnectedGUID() || var1 == null)) {
                 ByteBufferWriter var4 = var3.startPacket();
                 PacketTypes.PacketType.SyncCompost.doPacket(var4);
                 var4.putInt(var0.square.x);
@@ -2628,7 +2514,7 @@ public class GameServer {
 
     static void receiveCataplasm(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
-        IsoPlayer var4 = (IsoPlayer)IDToPlayerMap.get(var3);
+        IsoPlayer var4 = (IsoPlayer) IDToPlayerMap.get(var3);
         if (var4 != null) {
             int var5 = var0.getInt();
             float var6 = var0.getFloat();
@@ -2646,8 +2532,8 @@ public class GameServer {
                 var4.getBodyDamage().getBodyPart(BodyPartType.FromIndex(var5)).setGarlicFactor(var8);
             }
 
-            for(int var9 = 0; var9 < udpEngine.connections.size(); ++var9) {
-                UdpConnection var10 = (UdpConnection)udpEngine.connections.get(var9);
+            for (int var9 = 0; var9 < udpEngine.connections.size(); ++var9) {
+                UdpConnection var10 = (UdpConnection) udpEngine.connections.get(var9);
                 if (var10.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var11 = var10.startPacket();
                     PacketTypes.PacketType.Cataplasm.doPacket(var11);
@@ -2687,8 +2573,8 @@ public class GameServer {
 
         var1.AddTileObject(var3);
 
-        for(int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
-            UdpConnection var6 = (UdpConnection)udpEngine.connections.get(var5);
+        for (int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
+            UdpConnection var6 = (UdpConnection) udpEngine.connections.get(var5);
             ByteBufferWriter var7 = var6.startPacket();
             PacketTypes.PacketType.AddExplosiveTrap.doPacket(var7);
             var7.putInt(var1.x);
@@ -2727,7 +2613,7 @@ public class GameServer {
                 return;
             }
 
-            HandWeapon var8 = (HandWeapon)var7;
+            HandWeapon var8 = (HandWeapon) var7;
             String var10000 = var1.username;
             DebugLog.log("trap: user \"" + var10000 + "\" added " + var7.getFullType() + " at " + var3 + "," + var4 + "," + var5);
             ZLogger var16 = LoggerManager.getLogger("map");
@@ -2739,8 +2625,8 @@ public class GameServer {
                 var9.triggerExplosion(false);
             }
 
-            for(int var15 = 0; var15 < udpEngine.connections.size(); ++var15) {
-                UdpConnection var10 = (UdpConnection)udpEngine.connections.get(var15);
+            for (int var15 = 0; var15 < udpEngine.connections.size(); ++var15) {
+                UdpConnection var10 = (UdpConnection) udpEngine.connections.get(var15);
                 if (var10.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var11 = var10.startPacket();
                     PacketTypes.PacketType.AddExplosiveTrap.doPacket(var11);
@@ -2762,8 +2648,8 @@ public class GameServer {
     }
 
     public static void sendHelicopter(float var0, float var1, boolean var2) {
-        for(int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
-            UdpConnection var4 = (UdpConnection)udpEngine.connections.get(var3);
+        for (int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
+            UdpConnection var4 = (UdpConnection) udpEngine.connections.get(var3);
             ByteBufferWriter var5 = var4.startPacket();
             PacketTypes.PacketType.Helicopter.doPacket(var5);
             var5.putFloat(var0);
@@ -2788,8 +2674,8 @@ public class GameServer {
         boolean var13 = false;
         Iterator var14 = var12.iterator();
 
-        while(var14.hasNext()) {
-            IsoMetaGrid.Zone var15 = (IsoMetaGrid.Zone)var14.next();
+        while (var14.hasNext()) {
+            IsoMetaGrid.Zone var15 = (IsoMetaGrid.Zone) var14.next();
             if (var4.equals(var15.getType())) {
                 var13 = true;
                 var15.setName(var3);
@@ -2802,8 +2688,8 @@ public class GameServer {
         }
 
         if (var11) {
-            for(int var17 = 0; var17 < udpEngine.connections.size(); ++var17) {
-                UdpConnection var18 = (UdpConnection)udpEngine.connections.get(var17);
+            for (int var17 = 0; var17 < udpEngine.connections.size(); ++var17) {
+                UdpConnection var18 = (UdpConnection) udpEngine.connections.get(var17);
                 if (var18.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var16 = var18.startPacket();
                     PacketTypes.PacketType.RegisterZone.doPacket(var16);
@@ -2823,8 +2709,8 @@ public class GameServer {
     }
 
     public static void sendZone(IsoMetaGrid.Zone var0, UdpConnection var1) {
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
             if (var1 == null || var3.getConnectedGUID() != var1.getConnectedGUID()) {
                 ByteBufferWriter var4 = var3.startPacket();
                 PacketTypes.PacketType.RegisterZone.doPacket(var4);
@@ -2856,7 +2742,7 @@ public class GameServer {
     public static void addXp(IsoPlayer var0, PerkFactory.Perk var1, int var2) {
         DebugLog.log("<addXp>");
         if (PlayerToAddressMap.containsKey(var0)) {
-            long var3 = (Long)PlayerToAddressMap.get(var0);
+            long var3 = (Long) PlayerToAddressMap.get(var0);
             UdpConnection var5 = udpEngine.getActiveConnection(var3);
             if (var5 == null) {
                 return;
@@ -2882,8 +2768,8 @@ public class GameServer {
     private static void answerPing(ByteBuffer var0, UdpConnection var1) {
         String var2 = GameWindow.ReadString(var0);
 
-        for(int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
-            UdpConnection var4 = (UdpConnection)udpEngine.connections.get(var3);
+        for (int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
+            UdpConnection var4 = (UdpConnection) udpEngine.connections.get(var3);
             if (var4.getConnectedGUID() == var1.getConnectedGUID()) {
                 ByteBufferWriter var5 = var4.startPacket();
                 PacketTypes.PacketType.Ping.doPacket(var5);
@@ -2906,7 +2792,7 @@ public class GameServer {
         IsoGridSquare var9 = IsoWorld.instance.CurrentCell.getGridSquare(var5, var6, var7);
         if (var9 != null && var8 < var9.getObjects().size()) {
             try {
-                IsoObject var10 = (IsoObject)var9.getObjects().get(var8);
+                IsoObject var10 = (IsoObject) var9.getObjects().get(var8);
                 if (var10 != null) {
                     var10.sprite = IsoSpriteManager.instance.getSprite(var3);
                     if (var10.sprite == null && !var4.isEmpty()) {
@@ -2916,7 +2802,7 @@ public class GameServer {
                     var10.RemoveAttachedAnims();
                     int var11 = var0.get() & 255;
 
-                    for(int var12 = 0; var12 < var11; ++var12) {
+                    for (int var12 = 0; var12 < var11; ++var12) {
                         int var13 = var0.getInt();
                         IsoSprite var14 = IsoSpriteManager.instance.getSprite(var13);
                         if (var14 != null) {
@@ -2940,8 +2826,8 @@ public class GameServer {
                 var4 = var4.substring(0, 256);
             }
 
-            for(int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
-                UdpConnection var6 = (UdpConnection)udpEngine.connections.get(var5);
+            for (int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
+                UdpConnection var6 = (UdpConnection) udpEngine.connections.get(var5);
                 ByteBufferWriter var7 = var6.startPacket();
                 PacketTypes.PacketType.WorldMessage.doPacket(var7);
                 var7.putUTF(var3);
@@ -2963,14 +2849,14 @@ public class GameServer {
         short var11;
         if (var3 == 1) {
             var11 = var0.getShort();
-            IsoPlayer var13 = (IsoPlayer)IDToPlayerMap.get(var11);
+            IsoPlayer var13 = (IsoPlayer) IDToPlayerMap.get(var11);
             if (var13 != null) {
                 var13.sendObjectChange("StopBurning");
             }
 
         } else if (var3 == 2) {
             var11 = var0.getShort();
-            IsoZombie var12 = (IsoZombie)ServerMap.instance.ZombieMap.get(var11);
+            IsoZombie var12 = (IsoZombie) ServerMap.instance.ZombieMap.get(var11);
             if (var12 != null) {
                 var12.StopBurning();
             }
@@ -2983,9 +2869,9 @@ public class GameServer {
             if (var7 != null) {
                 var7.stopFire();
 
-                for(int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
-                    UdpConnection var9 = (UdpConnection)udpEngine.connections.get(var8);
-                    if (var9.RelevantTo((float)var4, (float)var5) && var9.getConnectedGUID() != var1.getConnectedGUID()) {
+                for (int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
+                    UdpConnection var9 = (UdpConnection) udpEngine.connections.get(var8);
+                    if (var9.RelevantTo((float) var4, (float) var5) && var9.getConnectedGUID() != var1.getConnectedGUID()) {
                         ByteBufferWriter var10 = var9.startPacket();
                         PacketTypes.PacketType.StopFire.doPacket(var10);
                         var10.putInt(var4);
@@ -3006,8 +2892,8 @@ public class GameServer {
         if (var3.isConsistent() && var3.validate(var1)) {
             var3.process();
 
-            for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+            for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
                 if (var5.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var6 = var5.startPacket();
                     PacketTypes.PacketType.StartFire.doPacket(var6);
@@ -3024,9 +2910,9 @@ public class GameServer {
         var5.set(var0, var2, var1, var3, var4);
         var5.process();
 
-        for(int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
-            UdpConnection var7 = (UdpConnection)udpEngine.connections.get(var6);
-            if (var7.RelevantTo((float)var0.getX(), (float)var0.getY())) {
+        for (int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
+            UdpConnection var7 = (UdpConnection) udpEngine.connections.get(var6);
+            if (var7.RelevantTo((float) var0.getX(), (float) var0.getY())) {
                 ByteBufferWriter var8 = var7.startPacket();
                 PacketTypes.PacketType.StartFire.doPacket(var8);
                 var5.write(var8);
@@ -3037,16 +2923,16 @@ public class GameServer {
     }
 
     public static void sendOptionsToClients() {
-        for(int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
-            UdpConnection var1 = (UdpConnection)udpEngine.connections.get(var0);
+        for (int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
+            UdpConnection var1 = (UdpConnection) udpEngine.connections.get(var0);
             ByteBufferWriter var2 = var1.startPacket();
             PacketTypes.PacketType.ReloadOptions.doPacket(var2);
             var2.putInt(ServerOptions.instance.getPublicOptions().size());
             String var3 = null;
             Iterator var4 = ServerOptions.instance.getPublicOptions().iterator();
 
-            while(var4.hasNext()) {
-                var3 = (String)var4.next();
+            while (var4.hasNext()) {
+                var3 = (String) var4.next();
                 var2.putUTF(var3);
                 var2.putUTF(ServerOptions.instance.getOption(var3));
             }
@@ -3059,9 +2945,9 @@ public class GameServer {
     public static void sendBecomeCorpse(IsoDeadBody var0) {
         IsoGridSquare var1 = var0.getSquare();
         if (var1 != null) {
-            for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-                UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
-                if (var3.RelevantTo((float)var1.x, (float)var1.y)) {
+            for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+                UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
+                if (var3.RelevantTo((float) var1.x, (float) var1.y)) {
                     ByteBufferWriter var4 = var3.startPacket();
                     PacketTypes.PacketType.BecomeCorpse.doPacket(var4);
 
@@ -3070,11 +2956,11 @@ public class GameServer {
                         var4.putShort(var0.getOnlineID());
                         var4.putFloat(var0.getReanimateTime());
                         if (var0.isPlayer()) {
-                            var4.putByte((byte)2);
+                            var4.putByte((byte) 2);
                         } else if (var0.isZombie()) {
-                            var4.putByte((byte)1);
+                            var4.putByte((byte) 1);
                         } else {
-                            var4.putByte((byte)0);
+                            var4.putByte((byte) 0);
                         }
 
                         var4.putInt(var1.x);
@@ -3094,9 +2980,9 @@ public class GameServer {
     public static void sendCorpse(IsoDeadBody var0) {
         IsoGridSquare var1 = var0.getSquare();
         if (var1 != null) {
-            for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-                UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
-                if (var3.RelevantTo((float)var1.x, (float)var1.y)) {
+            for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+                UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
+                if (var3.RelevantTo((float) var1.x, (float) var1.y)) {
                     ByteBufferWriter var4 = var3.startPacket();
                     PacketTypes.PacketType.AddCorpseToMap.doPacket(var4);
                     var4.putShort(var0.getObjectID());
@@ -3121,14 +3007,14 @@ public class GameServer {
         IsoObject var8 = WorldItemTypes.createFromBuffer(var0);
         if (var8 != null && var8 instanceof IsoDeadBody) {
             var8.loadFromRemoteBuffer(var0, false);
-            ((IsoDeadBody)var8).setObjectID(var3);
+            ((IsoDeadBody) var8).setObjectID(var3);
             IsoGridSquare var9 = ServerMap.instance.getGridSquare(var5, var6, var7);
             if (var9 != null) {
-                var9.addCorpse((IsoDeadBody)var8, true);
+                var9.addCorpse((IsoDeadBody) var8, true);
 
-                for(int var10 = 0; var10 < udpEngine.connections.size(); ++var10) {
-                    UdpConnection var11 = (UdpConnection)udpEngine.connections.get(var10);
-                    if (var11.getConnectedGUID() != var1.getConnectedGUID() && var11.RelevantTo((float)var5, (float)var6)) {
+                for (int var10 = 0; var10 < udpEngine.connections.size(); ++var10) {
+                    UdpConnection var11 = (UdpConnection) udpEngine.connections.get(var10);
+                    if (var11.getConnectedGUID() != var1.getConnectedGUID() && var11.RelevantTo((float) var5, (float) var6)) {
                         ByteBufferWriter var12 = var11.startPacket();
                         PacketTypes.PacketType.AddCorpseToMap.doPacket(var12);
                         var0.rewind();
@@ -3147,11 +3033,11 @@ public class GameServer {
         if (var3 != null && var3 instanceof IsoWindow) {
             byte var4 = var0.get();
             if (var4 == 1) {
-                ((IsoWindow)var3).smashWindow(true);
-                smashWindow((IsoWindow)var3, 1);
+                ((IsoWindow) var3).smashWindow(true);
+                smashWindow((IsoWindow) var3, 1);
             } else if (var4 == 2) {
-                ((IsoWindow)var3).setGlassRemoved(true);
-                smashWindow((IsoWindow)var3, 2);
+                ((IsoWindow) var3).setGlassRemoved(true);
+                smashWindow((IsoWindow) var3, 2);
             }
         }
 
@@ -3160,11 +3046,11 @@ public class GameServer {
     public static void sendPlayerConnect(IsoPlayer var0, UdpConnection var1) {
         ByteBufferWriter var2 = var1.startPacket();
         PacketTypes.PacketType.PlayerConnect.doPacket(var2);
-        if (var1.getConnectedGUID() != (Long)PlayerToAddressMap.get(var0)) {
+        if (var1.getConnectedGUID() != (Long) PlayerToAddressMap.get(var0)) {
             var2.putShort(var0.OnlineID);
         } else {
-            var2.putShort((short)-1);
-            var2.putByte((byte)var0.PlayerIndex);
+            var2.putShort((short) -1);
+            var2.putByte((byte) var0.PlayerIndex);
             var2.putShort(var0.OnlineID);
 
             try {
@@ -3178,7 +3064,7 @@ public class GameServer {
         var2.putFloat(var0.y);
         var2.putFloat(var0.z);
         var2.putUTF(var0.username);
-        if (var1.getConnectedGUID() != (Long)PlayerToAddressMap.get(var0)) {
+        if (var1.getConnectedGUID() != (Long) PlayerToAddressMap.get(var0)) {
             try {
                 var0.getDescriptor().save(var2.bb);
                 var0.getHumanVisual().save(var2.bb);
@@ -3194,12 +3080,12 @@ public class GameServer {
             var2.putLong(var0.getSteamID());
         }
 
-        var2.putByte((byte)(var0.isGodMod() ? 1 : 0));
-        var2.putByte((byte)(var0.isGhostMode() ? 1 : 0));
+        var2.putByte((byte) (var0.isGodMod() ? 1 : 0));
+        var2.putByte((byte) (var0.isGhostMode() ? 1 : 0));
         var0.getSafety().save(var2.bb);
         var2.putByte(PlayerType.fromString(var0.accessLevel));
-        var2.putByte((byte)(var0.isInvisible() ? 1 : 0));
-        if (var1.getConnectedGUID() != (Long)PlayerToAddressMap.get(var0)) {
+        var2.putByte((byte) (var0.isInvisible() ? 1 : 0));
+        if (var1.getConnectedGUID() != (Long) PlayerToAddressMap.get(var0)) {
             try {
                 var0.getXp().save(var2.bb);
             } catch (IOException var4) {
@@ -3221,7 +3107,7 @@ public class GameServer {
         var2.putBoolean(var0.factionPvp);
         var2.putInt(var0.getAttachedItems().size());
 
-        for(int var7 = 0; var7 < var0.getAttachedItems().size(); ++var7) {
+        for (int var7 = 0; var7 < var0.getAttachedItems().size(); ++var7) {
             var2.putUTF(var0.getAttachedItems().get(var7).getLocation());
             var2.putUTF(var0.getAttachedItems().get(var7).getItem().getFullType());
         }
@@ -3230,7 +3116,7 @@ public class GameServer {
         var2.putInt(var0.remoteStrLvl);
         var2.putInt(var0.remoteFitLvl);
         PacketTypes.PacketType.PlayerConnect.send(var1);
-        if (var1.getConnectedGUID() != (Long)PlayerToAddressMap.get(var0)) {
+        if (var1.getConnectedGUID() != (Long) PlayerToAddressMap.get(var0)) {
             updateHandEquips(var1, var0);
         }
 
@@ -3238,7 +3124,7 @@ public class GameServer {
 
     @Deprecated
     static void receiveRequestPlayerData(ByteBuffer var0, UdpConnection var1, short var2) {
-        IsoPlayer var3 = (IsoPlayer)IDToPlayerMap.get(var0.getShort());
+        IsoPlayer var3 = (IsoPlayer) IDToPlayerMap.get(var0.getShort());
         if (var3 != null) {
             sendPlayerConnect(var3, var1);
         }
@@ -3250,35 +3136,35 @@ public class GameServer {
     }
 
     public static void loadModData(IsoGridSquare var0) {
-        if (var0.getModData().rawget("id") != null && var0.getModData().rawget("id") != null && (var0.getModData().rawget("remove") == null || ((String)var0.getModData().rawget("remove")).equals("false"))) {
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":x", ((double)var0.getX()));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":y", ((double)var0.getY()));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":z", ((double)var0.getZ()));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":typeOfSeed", var0.getModData().rawget("typeOfSeed"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":nbOfGrow", (Double)var0.getModData().rawget("nbOfGrow"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":id", var0.getModData().rawget("id"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":waterLvl", var0.getModData().rawget("waterLvl"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":lastWaterHour", var0.getModData().rawget("lastWaterHour"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":waterNeeded", var0.getModData().rawget("waterNeeded"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":waterNeededMax", var0.getModData().rawget("waterNeededMax"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":mildewLvl", var0.getModData().rawget("mildewLvl"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":aphidLvl", var0.getModData().rawget("aphidLvl"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":fliesLvl", var0.getModData().rawget("fliesLvl"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":fertilizer", var0.getModData().rawget("fertilizer"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":nextGrowing", var0.getModData().rawget("nextGrowing"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":hasVegetable", var0.getModData().rawget("hasVegetable"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":hasSeed", var0.getModData().rawget("hasSeed"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":health", var0.getModData().rawget("health"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":badCare", var0.getModData().rawget("badCare"));
-            GameTime.getInstance().getModData().rawset("planting:" + ((Double)var0.getModData().rawget("id")).intValue() + ":state", var0.getModData().rawget("state"));
+        if (var0.getModData().rawget("id") != null && var0.getModData().rawget("id") != null && (var0.getModData().rawget("remove") == null || ((String) var0.getModData().rawget("remove")).equals("false"))) {
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":x", ((double) var0.getX()));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":y", ((double) var0.getY()));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":z", ((double) var0.getZ()));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":typeOfSeed", var0.getModData().rawget("typeOfSeed"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":nbOfGrow", (Double) var0.getModData().rawget("nbOfGrow"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":id", var0.getModData().rawget("id"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":waterLvl", var0.getModData().rawget("waterLvl"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":lastWaterHour", var0.getModData().rawget("lastWaterHour"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":waterNeeded", var0.getModData().rawget("waterNeeded"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":waterNeededMax", var0.getModData().rawget("waterNeededMax"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":mildewLvl", var0.getModData().rawget("mildewLvl"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":aphidLvl", var0.getModData().rawget("aphidLvl"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":fliesLvl", var0.getModData().rawget("fliesLvl"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":fertilizer", var0.getModData().rawget("fertilizer"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":nextGrowing", var0.getModData().rawget("nextGrowing"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":hasVegetable", var0.getModData().rawget("hasVegetable"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":hasSeed", var0.getModData().rawget("hasSeed"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":health", var0.getModData().rawget("health"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":badCare", var0.getModData().rawget("badCare"));
+            GameTime.getInstance().getModData().rawset("planting:" + ((Double) var0.getModData().rawget("id")).intValue() + ":state", var0.getModData().rawget("state"));
             if (var0.getModData().rawget("hoursElapsed") != null) {
                 GameTime.getInstance().getModData().rawset("hoursElapsed", var0.getModData().rawget("hoursElapsed"));
             }
         }
 
-        for(int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
-            UdpConnection var2 = (UdpConnection)udpEngine.connections.get(var1);
-            if (var2.RelevantTo((float)var0.getX(), (float)var0.getY())) {
+        for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
+            UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
+            if (var2.RelevantTo((float) var0.getX(), (float) var0.getY())) {
                 ByteBufferWriter var3 = var2.startPacket();
                 PacketTypes.PacketType.ReceiveModData.doPacket(var3);
                 var3.putInt(var0.getX());
@@ -3304,28 +3190,28 @@ public class GameServer {
         IsoGridSquare var6 = ServerMap.instance.getGridSquare(var3, var4, var5);
         if (var6 != null) {
             try {
-                var6.getModData().load((ByteBuffer)var0, 195);
-                if (var6.getModData().rawget("id") != null && (var6.getModData().rawget("remove") == null || ((String)var6.getModData().rawget("remove")).equals("false"))) {
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":x", ((double)var6.getX()));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":y", ((double)var6.getY()));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":z", ((double)var6.getZ()));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":typeOfSeed", var6.getModData().rawget("typeOfSeed"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":nbOfGrow", (Double)var6.getModData().rawget("nbOfGrow"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":id", var6.getModData().rawget("id"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":waterLvl", var6.getModData().rawget("waterLvl"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":lastWaterHour", var6.getModData().rawget("lastWaterHour"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":waterNeeded", var6.getModData().rawget("waterNeeded"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":waterNeededMax", var6.getModData().rawget("waterNeededMax"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":mildewLvl", var6.getModData().rawget("mildewLvl"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":aphidLvl", var6.getModData().rawget("aphidLvl"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":fliesLvl", var6.getModData().rawget("fliesLvl"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":fertilizer", var6.getModData().rawget("fertilizer"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":nextGrowing", var6.getModData().rawget("nextGrowing"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":hasVegetable", var6.getModData().rawget("hasVegetable"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":hasSeed", var6.getModData().rawget("hasSeed"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":health", var6.getModData().rawget("health"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":badCare", var6.getModData().rawget("badCare"));
-                    GameTime.getInstance().getModData().rawset("planting:" + ((Double)var6.getModData().rawget("id")).intValue() + ":state", var6.getModData().rawget("state"));
+                var6.getModData().load((ByteBuffer) var0, 195);
+                if (var6.getModData().rawget("id") != null && (var6.getModData().rawget("remove") == null || ((String) var6.getModData().rawget("remove")).equals("false"))) {
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":x", ((double) var6.getX()));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":y", ((double) var6.getY()));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":z", ((double) var6.getZ()));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":typeOfSeed", var6.getModData().rawget("typeOfSeed"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":nbOfGrow", (Double) var6.getModData().rawget("nbOfGrow"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":id", var6.getModData().rawget("id"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":waterLvl", var6.getModData().rawget("waterLvl"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":lastWaterHour", var6.getModData().rawget("lastWaterHour"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":waterNeeded", var6.getModData().rawget("waterNeeded"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":waterNeededMax", var6.getModData().rawget("waterNeededMax"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":mildewLvl", var6.getModData().rawget("mildewLvl"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":aphidLvl", var6.getModData().rawget("aphidLvl"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":fliesLvl", var6.getModData().rawget("fliesLvl"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":fertilizer", var6.getModData().rawget("fertilizer"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":nextGrowing", var6.getModData().rawget("nextGrowing"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":hasVegetable", var6.getModData().rawget("hasVegetable"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":hasSeed", var6.getModData().rawget("hasSeed"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":health", var6.getModData().rawget("health"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":badCare", var6.getModData().rawget("badCare"));
+                    GameTime.getInstance().getModData().rawset("planting:" + ((Double) var6.getModData().rawget("id")).intValue() + ":state", var6.getModData().rawget("state"));
                     if (var6.getModData().rawget("hoursElapsed") != null) {
                         GameTime.getInstance().getModData().rawset("hoursElapsed", var6.getModData().rawget("hoursElapsed"));
                     }
@@ -3333,9 +3219,9 @@ public class GameServer {
 
                 LuaEventManager.triggerEvent("onLoadModDataFromServer", var6);
 
-                for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                    UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
-                    if (var8.RelevantTo((float)var6.getX(), (float)var6.getY()) && (var1 == null || var8.getConnectedGUID() != var1.getConnectedGUID())) {
+                for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                    UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
+                    if (var8.RelevantTo((float) var6.getX(), (float) var6.getY()) && (var1 == null || var8.getConnectedGUID() != var1.getConnectedGUID())) {
                         ByteBufferWriter var9 = var8.startPacket();
                         PacketTypes.PacketType.ReceiveModData.doPacket(var9);
                         var9.putInt(var3);
@@ -3376,17 +3262,17 @@ public class GameServer {
                 return;
             }
 
-            int var8 = (int)var3.getX();
-            int var9 = (int)var3.getY();
-            int var10 = (int)var3.getZ();
+            int var8 = (int) var3.getX();
+            int var9 = (int) var3.getY();
+            int var10 = (int) var3.getZ();
             if (var3 instanceof IsoDoor) {
-                ((IsoDoor)var3).WeaponHit(var6, (HandWeapon)var7);
+                ((IsoDoor) var3).WeaponHit(var6, (HandWeapon) var7);
             } else if (var3 instanceof IsoThumpable) {
-                ((IsoThumpable)var3).WeaponHit(var6, (HandWeapon)var7);
+                ((IsoThumpable) var3).WeaponHit(var6, (HandWeapon) var7);
             } else if (var3 instanceof IsoWindow) {
-                ((IsoWindow)var3).WeaponHit(var6, (HandWeapon)var7);
+                ((IsoWindow) var3).WeaponHit(var6, (HandWeapon) var7);
             } else if (var3 instanceof IsoBarricade) {
-                ((IsoBarricade)var3).WeaponHit(var6, (HandWeapon)var7);
+                ((IsoBarricade) var3).WeaponHit(var6, (HandWeapon) var7);
             }
 
             if (var3.getObjectIndex() == -1) {
@@ -3402,7 +3288,7 @@ public class GameServer {
         var1.putInt(var0.square.x);
         var1.putInt(var0.square.y);
         var1.putInt(var0.square.z);
-        var1.put((byte)var0.square.getObjects().indexOf(var0));
+        var1.put((byte) var0.square.getObjects().indexOf(var0));
     }
 
     private static IsoObject getIsoObjectRefFromByteBuffer(ByteBuffer var0) {
@@ -3411,7 +3297,7 @@ public class GameServer {
         int var3 = var0.getInt();
         byte var4 = var0.get();
         IsoGridSquare var5 = ServerMap.instance.getGridSquare(var1, var2, var3);
-        return var5 != null && var4 >= 0 && var4 < var5.getObjects().size() ? (IsoObject)var5.getObjects().get(var4) : null;
+        return var5 != null && var4 >= 0 && var4 < var5.getObjects().size() ? (IsoObject) var5.getObjects().get(var4) : null;
     }
 
     static void receiveDrink(ByteBuffer var0, UdpConnection var1, short var2) {
@@ -3433,7 +3319,7 @@ public class GameServer {
         UdpConnection var2 = udpEngine.getActiveConnection(var0.connection);
 
         try {
-            switch(var0.type) {
+            switch (var0.type) {
                 default:
                     doZomboidDataInMainLoop(var0);
             }
@@ -3489,7 +3375,7 @@ public class GameServer {
 
     static void receiveBandage(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
-        IsoPlayer var4 = (IsoPlayer)IDToPlayerMap.get(var3);
+        IsoPlayer var4 = (IsoPlayer) IDToPlayerMap.get(var3);
         if (var4 != null) {
             int var5 = var0.getInt();
             boolean var6 = var0.get() == 1;
@@ -3498,8 +3384,8 @@ public class GameServer {
             String var9 = GameWindow.ReadStringUTF(var0);
             var4.getBodyDamage().SetBandaged(var5, var6, var7, var8, var9);
 
-            for(int var10 = 0; var10 < udpEngine.connections.size(); ++var10) {
-                UdpConnection var11 = (UdpConnection)udpEngine.connections.get(var10);
+            for (int var10 = 0; var10 < udpEngine.connections.size(); ++var10) {
+                UdpConnection var11 = (UdpConnection) udpEngine.connections.get(var10);
                 if (var11.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var12 = var11.startPacket();
                     PacketTypes.PacketType.Bandage.doPacket(var12);
@@ -3520,8 +3406,8 @@ public class GameServer {
         Stitch var3 = new Stitch();
         var3.parse(var0, var1);
         if (var3.isConsistent() && var3.validate(var1)) {
-            for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+            for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
                 if (var5.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var6 = var5.startPacket();
                     PacketTypes.PacketType.Stitch.doPacket(var6);
@@ -3536,14 +3422,14 @@ public class GameServer {
     @Deprecated
     static void receiveWoundInfection(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
-        IsoPlayer var4 = (IsoPlayer)IDToPlayerMap.get(var3);
+        IsoPlayer var4 = (IsoPlayer) IDToPlayerMap.get(var3);
         if (var4 != null) {
             int var5 = var0.getInt();
             boolean var6 = var0.get() == 1;
             var4.getBodyDamage().getBodyPart(BodyPartType.FromIndex(var5)).setInfectedWound(var6);
 
-            for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+            for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
                 if (var8.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var9 = var8.startPacket();
                     PacketTypes.PacketType.WoundInfection.doPacket(var9);
@@ -3561,8 +3447,8 @@ public class GameServer {
         Disinfect var3 = new Disinfect();
         var3.parse(var0, var1);
         if (var3.isConsistent() && var3.validate(var1)) {
-            for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+            for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
                 if (var5.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var6 = var5.startPacket();
                     PacketTypes.PacketType.Disinfect.doPacket(var6);
@@ -3576,7 +3462,7 @@ public class GameServer {
 
     static void receiveSplint(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
-        IsoPlayer var4 = (IsoPlayer)IDToPlayerMap.get(var3);
+        IsoPlayer var4 = (IsoPlayer) IDToPlayerMap.get(var3);
         if (var4 != null) {
             int var5 = var0.getInt();
             boolean var6 = var0.get() == 1;
@@ -3586,8 +3472,8 @@ public class GameServer {
             var9.setSplint(var6, var8);
             var9.setSplintItem(var7);
 
-            for(int var10 = 0; var10 < udpEngine.connections.size(); ++var10) {
-                UdpConnection var11 = (UdpConnection)udpEngine.connections.get(var10);
+            for (int var10 = 0; var10 < udpEngine.connections.size(); ++var10) {
+                UdpConnection var11 = (UdpConnection) udpEngine.connections.get(var10);
                 if (var11.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var12 = var11.startPacket();
                     PacketTypes.PacketType.Splint.doPacket(var12);
@@ -3608,15 +3494,15 @@ public class GameServer {
 
     static void receiveAdditionalPain(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
-        IsoPlayer var4 = (IsoPlayer)IDToPlayerMap.get(var3);
+        IsoPlayer var4 = (IsoPlayer) IDToPlayerMap.get(var3);
         if (var4 != null) {
             int var5 = var0.getInt();
             float var6 = var0.getFloat();
             BodyPart var7 = var4.getBodyDamage().getBodyPart(BodyPartType.FromIndex(var5));
             var7.setAdditionalPain(var7.getAdditionalPain() + var6);
 
-            for(int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
-                UdpConnection var9 = (UdpConnection)udpEngine.connections.get(var8);
+            for (int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
+                UdpConnection var9 = (UdpConnection) udpEngine.connections.get(var8);
                 if (var9.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var10 = var9.startPacket();
                     PacketTypes.PacketType.AdditionalPain.doPacket(var10);
@@ -3636,8 +3522,8 @@ public class GameServer {
         if (var3.isConsistent() && var3.validate(var1)) {
             var3.process();
 
-            for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+            for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
                 if (var5.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var6 = var5.startPacket();
                     PacketTypes.PacketType.RemoveGlass.doPacket(var6);
@@ -3655,8 +3541,8 @@ public class GameServer {
         if (var3.isConsistent() && var3.validate(var1)) {
             var3.process();
 
-            for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+            for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
                 if (var5.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var6 = var5.startPacket();
                     PacketTypes.PacketType.RemoveBullet.doPacket(var6);
@@ -3674,8 +3560,8 @@ public class GameServer {
         if (var3.isConsistent() && var3.validate(var1)) {
             var3.process();
 
-            for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+            for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
                 if (var5.getConnectedGUID() != var1.getConnectedGUID()) {
                     ByteBufferWriter var6 = var5.startPacket();
                     PacketTypes.PacketType.CleanBurn.doPacket(var6);
@@ -3718,12 +3604,12 @@ public class GameServer {
             ArrayList var2 = new ArrayList();
             Matcher var3 = Pattern.compile("([^\"]\\S*|\".*?\")\\s*").matcher(var0);
 
-            while(var3.find()) {
+            while (var3.find()) {
                 var2.add(var3.group(1).replace("\"", ""));
             }
 
             int var4 = var2.size();
-            String[] var5 = (String[])var2.toArray(new String[var4]);
+            String[] var5 = (String[]) var2.toArray(new String[var4]);
             String var6 = var4 > 0 ? var5[0].toLowerCase() : "";
             String var10000;
             if (var6.equals("card")) {
@@ -3732,7 +3618,7 @@ public class GameServer {
                 return var10000 + " drew " + ServerOptions.getRandomCard();
             } else if (var6.equals("roll")) {
                 if (var4 != 2) {
-                    return (String)ServerOptions.clientOptionsList.get("roll");
+                    return (String) ServerOptions.clientOptionsList.get("roll");
                 } else {
                     boolean var13 = false;
 
@@ -3742,7 +3628,7 @@ public class GameServer {
                         var10000 = var1.username;
                         return var10000 + " rolls a " + var14 + "-sided dice and obtains " + Rand.Next(var14);
                     } catch (Exception var10) {
-                        return (String)ServerOptions.clientOptionsList.get("roll");
+                        return (String) ServerOptions.clientOptionsList.get("roll");
                     }
                 }
             } else if (var6.equals("changepwd")) {
@@ -3757,7 +3643,7 @@ public class GameServer {
                         return "A SQL error occured";
                     }
                 } else {
-                    return (String)ServerOptions.clientOptionsList.get("changepwd");
+                    return (String) ServerOptions.clientOptionsList.get("changepwd");
                 }
             } else if (var6.equals("dragons")) {
                 return "Sorry, you don't have the required materials.";
@@ -3774,14 +3660,14 @@ public class GameServer {
                         } else if (!ServerOptions.instance.PlayerSafehouse.getValue() && !"admin".equals(var1.accessLevel) && !"moderator".equals(var1.accessLevel)) {
                             return "Only admin or moderator may release safehouses";
                         } else {
-                            var7.removeSafeHouse((IsoPlayer)null);
+                            var7.removeSafeHouse((IsoPlayer) null);
                             return "Safehouse released";
                         }
                     } else {
-                        return (String)ServerOptions.clientOptionsList.get("safehouse");
+                        return (String) ServerOptions.clientOptionsList.get("safehouse");
                     }
                 } else {
-                    return (String)ServerOptions.clientOptionsList.get("safehouse");
+                    return (String) ServerOptions.clientOptionsList.get("safehouse");
                 }
             } else {
                 return null;
@@ -3790,7 +3676,7 @@ public class GameServer {
     }
 
     public static void doZomboidDataInMainLoop(ZomboidNetData var0) {
-        synchronized(MainLoopNetDataHighPriorityQ) {
+        synchronized (MainLoopNetDataHighPriorityQ) {
             MainLoopNetDataHighPriorityQ.add(var0);
         }
     }
@@ -3839,8 +3725,8 @@ public class GameServer {
         }
 
         if (var7 != null) {
-            for(int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
-                UdpConnection var9 = (UdpConnection)udpEngine.connections.get(var8);
+            for (int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
+                UdpConnection var9 = (UdpConnection) udpEngine.connections.get(var8);
                 if (var9.getConnectedGUID() != var1.getConnectedGUID()) {
                     IsoPlayer var10 = getAnyPlayerFromConnection(var9);
                     if (var10 != null) {
@@ -3853,10 +3739,10 @@ public class GameServer {
                             try {
                                 var6.saveWithSize(var11.bb, false);
                                 if (var6.getVisual() != null) {
-                                    var11.bb.put((byte)1);
+                                    var11.bb.put((byte) 1);
                                     var6.getVisual().save(var11.bb);
                                 } else {
-                                    var11.bb.put((byte)0);
+                                    var11.bb.put((byte) 0);
                                 }
                             } catch (IOException var13) {
                                 var13.printStackTrace();
@@ -3884,10 +3770,10 @@ public class GameServer {
         ArrayList var6 = new ArrayList();
 
         int var7;
-        for(var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-            UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+        for (var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+            UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
             if (var8.isFullyConnected()) {
-                for(int var9 = 0; var9 < 4; ++var9) {
+                for (int var9 = 0; var9 < 4; ++var9) {
                     if (var8.usernames[var9] != null) {
                         var4.add(var8.usernames[var9]);
                         IsoPlayer var10 = getPlayerByRealUserName(var8.usernames[var9]);
@@ -3908,11 +3794,11 @@ public class GameServer {
 
         var3.putInt(var4.size());
 
-        for(var7 = 0; var7 < var4.size(); ++var7) {
-            var3.putUTF((String)var4.get(var7));
-            var3.putUTF((String)var5.get(var7));
+        for (var7 = 0; var7 < var4.size(); ++var7) {
+            var3.putUTF((String) var4.get(var7));
+            var3.putUTF((String) var5.get(var7));
             if (SteamUtils.isSteamModeEnabled()) {
-                var3.putLong((Long)var6.get(var7));
+                var3.putLong((Long) var6.get(var7));
             }
         }
 
@@ -3923,8 +3809,8 @@ public class GameServer {
         StopSoundPacket var3 = new StopSoundPacket();
         var3.parse(var0, var1);
 
-        for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-            UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+        for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+            UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
             if (var5.getConnectedGUID() != var1.getConnectedGUID() && var5.isFullyConnected()) {
                 ByteBufferWriter var6 = var5.startPacket();
                 PacketTypes.PacketType.StopSound.doPacket(var6);
@@ -3944,19 +3830,19 @@ public class GameServer {
             GameSound var6 = GameSounds.getSound(var3.getName());
             int var7;
             if (var6 != null) {
-                for(var7 = 0; var7 < var6.clips.size(); ++var7) {
-                    GameSoundClip var8 = (GameSoundClip)var6.clips.get(var7);
+                for (var7 = 0; var7 < var6.clips.size(); ++var7) {
+                    GameSoundClip var8 = (GameSoundClip) var6.clips.get(var7);
                     if (var8.hasMaxDistance()) {
-                        var5 = Math.max(var5, (int)var8.distanceMax);
+                        var5 = Math.max(var5, (int) var8.distanceMax);
                     }
                 }
             }
 
-            for(var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                UdpConnection var11 = (UdpConnection)udpEngine.connections.get(var7);
+            for (var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                UdpConnection var11 = (UdpConnection) udpEngine.connections.get(var7);
                 if (var11.getConnectedGUID() != var1.getConnectedGUID() && var11.isFullyConnected()) {
                     IsoPlayer var9 = getAnyPlayerFromConnection(var11);
-                    if (var9 != null && (var4 == null || var11.RelevantTo(var4.getX(), var4.getY(), (float)var5))) {
+                    if (var9 != null && (var4 == null || var11.RelevantTo(var4.getX(), var4.getY(), (float) var5))) {
                         ByteBufferWriter var10 = var11.startPacket();
                         PacketTypes.PacketType.PlaySound.doPacket(var10);
                         var3.write(var10);
@@ -3976,19 +3862,19 @@ public class GameServer {
             GameSound var5 = GameSounds.getSound(var3.getName());
             int var6;
             if (var5 != null) {
-                for(var6 = 0; var6 < var5.clips.size(); ++var6) {
-                    GameSoundClip var7 = (GameSoundClip)var5.clips.get(var6);
+                for (var6 = 0; var6 < var5.clips.size(); ++var6) {
+                    GameSoundClip var7 = (GameSoundClip) var5.clips.get(var6);
                     if (var7.hasMaxDistance()) {
-                        var4 = Math.max(var4, (int)var7.distanceMax);
+                        var4 = Math.max(var4, (int) var7.distanceMax);
                     }
                 }
             }
 
-            for(var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
-                UdpConnection var10 = (UdpConnection)udpEngine.connections.get(var6);
+            for (var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
+                UdpConnection var10 = (UdpConnection) udpEngine.connections.get(var6);
                 if (var10.getConnectedGUID() != var1.getConnectedGUID() && var10.isFullyConnected()) {
                     IsoPlayer var8 = getAnyPlayerFromConnection(var10);
-                    if (var8 != null && var10.RelevantTo((float)var3.getX(), (float)var3.getY(), (float)var4)) {
+                    if (var8 != null && var10.RelevantTo((float) var3.getX(), (float) var3.getY(), (float) var4)) {
                         ByteBufferWriter var9 = var10.startPacket();
                         PacketTypes.PacketType.PlayWorldSound.doPacket(var9);
                         var3.write(var9);
@@ -4006,15 +3892,15 @@ public class GameServer {
             int var4 = var1.getY();
             int var5 = var1.getZ();
             PlayWorldSoundPacket var6 = new PlayWorldSoundPacket();
-            var6.set(var0, var3, var4, (byte)var5);
+            var6.set(var0, var3, var4, (byte) var5);
             DebugType var10000 = DebugType.Sound;
             String var10001 = var6.getDescription();
             DebugLog.log(var10000, "sending " + var10001 + " radius=" + var2);
 
-            for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+            for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
                 IsoPlayer var9 = getAnyPlayerFromConnection(var8);
-                if (var9 != null && var8.RelevantTo((float)var3, (float)var4, var2 * 2.0F)) {
+                if (var9 != null && var8.RelevantTo((float) var3, (float) var4, var2 * 2.0F)) {
                     ByteBufferWriter var10 = var8.startPacket();
                     PacketTypes.PacketType.PlayWorldSound.doPacket(var10);
                     var6.write(var10);
@@ -4055,14 +3941,14 @@ public class GameServer {
                 DebugLog.log(DebugType.Sound, "sound: sending " + var0 + " at every player location x=" + var1 + " y=" + var2);
             }
 
-            for(int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
-                UdpConnection var6 = (UdpConnection)udpEngine.connections.get(var5);
+            for (int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
+                UdpConnection var6 = (UdpConnection) udpEngine.connections.get(var5);
                 IsoPlayer var7 = getAnyPlayerFromConnection(var6);
                 if (var7 != null && !var7.isDeaf()) {
                     if (var4) {
-                        var1 = (int)var7.getX();
-                        var2 = (int)var7.getY();
-                        var3 = (int)var7.getZ();
+                        var1 = (int) var7.getX();
+                        var2 = (int) var7.getY();
+                        var3 = (int) var7.getZ();
                     }
 
                     ByteBufferWriter var8 = var6.startPacket();
@@ -4079,16 +3965,16 @@ public class GameServer {
     }
 
     public static void sendZombieSound(IsoZombie.ZombieSound var0, IsoZombie var1) {
-        float var2 = (float)var0.radius();
+        float var2 = (float) var0.radius();
         DebugLog.log(DebugType.Sound, "sound: sending zombie sound " + var0);
 
-        for(int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
-            UdpConnection var4 = (UdpConnection)udpEngine.connections.get(var3);
+        for (int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
+            UdpConnection var4 = (UdpConnection) udpEngine.connections.get(var3);
             if (var4.isFullyConnected() && var4.RelevantTo(var1.getX(), var1.getY(), var2)) {
                 ByteBufferWriter var5 = var4.startPacket();
                 PacketTypes.PacketType.ZombieSound.doPacket(var5);
                 var5.putShort(var1.OnlineID);
-                var5.putByte((byte)var0.ordinal());
+                var5.putByte((byte) var0.ordinal());
                 PacketTypes.PacketType.ZombieSound.send(var4);
             }
         }
@@ -4099,13 +3985,13 @@ public class GameServer {
         byte var3 = var0.get();
         short var4 = var0.getShort();
         String var5 = GameWindow.ReadString(var0);
-        IsoZombie var6 = (IsoZombie)ServerMap.instance.ZombieMap.get(var4);
+        IsoZombie var6 = (IsoZombie) ServerMap.instance.ZombieMap.get(var4);
         IsoPlayer var7 = getPlayerFromConnection(var1, var3);
         if (var7 != null && var6 != null) {
             var6.serverRemoveItemFromZombie(var5);
 
-            for(int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
-                UdpConnection var9 = (UdpConnection)udpEngine.connections.get(var8);
+            for (int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
+                UdpConnection var9 = (UdpConnection) udpEngine.connections.get(var8);
                 if (var9.getConnectedGUID() != var1.getConnectedGUID()) {
                     IsoPlayer var10 = getAnyPlayerFromConnection(var1);
                     if (var10 != null) {
@@ -4143,8 +4029,8 @@ public class GameServer {
         if (var13 != null) {
             var13.setAttachedItem(var4, var6);
 
-            for(int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
-                UdpConnection var9 = (UdpConnection)udpEngine.connections.get(var8);
+            for (int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
+                UdpConnection var9 = (UdpConnection) udpEngine.connections.get(var8);
                 if (var9.getConnectedGUID() != var1.getConnectedGUID()) {
                     IsoPlayer var10 = getAnyPlayerFromConnection(var1);
                     if (var10 != null) {
@@ -4153,7 +4039,7 @@ public class GameServer {
                             PacketTypes.PacketType.PlayerAttachedItem.doPacket(var11);
                             var11.putShort(var13.OnlineID);
                             GameWindow.WriteString(var11.bb, var4);
-                            var11.putByte((byte)(var5 ? 1 : 0));
+                            var11.putByte((byte) (var5 ? 1 : 0));
                             if (var5) {
                                 GameWindow.WriteString(var11.bb, var6.getFullType());
                             }
@@ -4174,8 +4060,8 @@ public class GameServer {
         SyncClothingPacket var3 = new SyncClothingPacket();
         var3.parse(var0, var1);
         if (var3.isConsistent()) {
-            for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+            for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
                 if (var5.getConnectedGUID() != var1.getConnectedGUID()) {
                     IsoPlayer var6 = getAnyPlayerFromConnection(var1);
                     if (var6 != null) {
@@ -4192,7 +4078,7 @@ public class GameServer {
 
     static void receiveHumanVisual(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
-        IsoPlayer var4 = (IsoPlayer)IDToPlayerMap.get(var3);
+        IsoPlayer var4 = (IsoPlayer) IDToPlayerMap.get(var3);
         if (var4 != null) {
             if (!var1.havePlayer(var4)) {
                 DebugLog.Network.warn("User " + var1.username + " sent HumanVisual packet for non owned player #" + var4.OnlineID);
@@ -4204,8 +4090,8 @@ public class GameServer {
                     return;
                 }
 
-                for(int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
-                    UdpConnection var6 = (UdpConnection)udpEngine.connections.get(var5);
+                for (int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
+                    UdpConnection var6 = (UdpConnection) udpEngine.connections.get(var5);
                     if (var6.getConnectedGUID() != var1.getConnectedGUID()) {
                         IsoPlayer var7 = getAnyPlayerFromConnection(var6);
                         if (var7 != null) {
@@ -4235,7 +4121,7 @@ public class GameServer {
         String[] var2 = var1;
         int var3 = var1.length;
 
-        for(int var4 = 0; var4 < var3; ++var4) {
+        for (int var4 = 0; var4 < var3; ++var4) {
             String var5 = var2[var4];
             if (!var5.isEmpty() && var5.contains(".") && (var5.startsWith("+") || var5.startsWith("-"))) {
                 String[] var6 = var5.split("\\.");
@@ -4245,7 +4131,7 @@ public class GameServer {
                     GameServer.CCFilter var9 = new GameServer.CCFilter();
                     var9.command = var8;
                     var9.allow = var6[0].startsWith("+");
-                    var9.next = (GameServer.CCFilter)ccFilters.get(var7);
+                    var9.next = (GameServer.CCFilter) ccFilters.get(var7);
                     ccFilters.put(var7, var9);
                 }
             }
@@ -4298,16 +4184,18 @@ public class GameServer {
 
         /*- Проверка: есть ли команда в списке запрещенных -*/
         boolean isAllowedForPlayer = true;
-        for (String command: adminCommands) {
-            if (command.equals(var5)) {isAllowedForPlayer = false;}
+        for (String command : adminCommands) {
+            if (command.equals(var5)) {
+                isAllowedForPlayer = false;
+            }
         }
 
         //TODO: вместо try-catch просто сделать проверку - не равен ли игрок null
         try {
-        /*-- если игрок отправляет команду и она в списке запрещенных и у игрока нет админ привелегий - кикаем --*/
+            /*-- если игрок отправляет команду и она в списке запрещенных и у игрока нет админ привелегий - кикаем --*/
             if (!isAllowedForPlayer & var8.getAccessLevel().equals("None")) {
-            GameServer.kick(var1, "UI_Policy_Kick", (String)null);
-            DebugLog.log("<ClientCommand>: kicked " + var8.getUsername() + ". Reason: " + var5);
+                GameServer.kick(var1, "UI_Policy_Kick", (String) null);
+                DebugLog.log("<ClientCommand>: kicked " + var8.getUsername() + ". Reason: " + var5);
             }
         } catch (Exception e) {
             DebugLog.log("<ClientCommand> error" + e.toString());
@@ -4316,11 +4204,11 @@ public class GameServer {
         if (var8 == null) {
             DebugLog.log("receiveClientCommand: player is null");
         } else {
-            GameServer.CCFilter var9 = (GameServer.CCFilter)ccFilters.get(var4);
+            GameServer.CCFilter var9 = (GameServer.CCFilter) ccFilters.get(var4);
             if (var9 == null || var9.passes(var5)) {
                 ZLogger var10000 = LoggerManager.getLogger("cmd");
                 String var10001 = var1.idStr;
-                var10000.write(var10001 + " \"" + var8.username + "\" " + var4 + "." + var5 + " @ " + (int)var8.getX() + "," + (int)var8.getY() + "," + (int)var8.getZ());
+                var10000.write(var10001 + " \"" + var8.username + "\" " + var4 + "." + var5 + " @ " + (int) var8.getX() + "," + (int) var8.getY() + "," + (int) var8.getZ());
             }
 
             if (!"vehicle".equals(var4) || !"remove".equals(var5) || Core.bDebug || PlayerType.isPrivileged(var1.accessLevel) || var8.networkAI.isDismantleAllowed()) {
@@ -4344,7 +4232,7 @@ public class GameServer {
     }
 
     public static IsoPlayer getAnyPlayerFromConnection(UdpConnection var0) {
-        for(int var1 = 0; var1 < 4; ++var1) {
+        for (int var1 = 0; var1 < 4; ++var1) {
             if (var0.players[var1] != null) {
                 return var0.players[var1];
             }
@@ -4358,10 +4246,10 @@ public class GameServer {
     }
 
     public static IsoPlayer getPlayerByRealUserName(String var0) {
-        for(int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
-            UdpConnection var2 = (UdpConnection)udpEngine.connections.get(var1);
+        for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
+            UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
 
-            for(int var3 = 0; var3 < 4; ++var3) {
+            for (int var3 = 0; var3 < 4; ++var3) {
                 IsoPlayer var4 = var2.players[var3];
                 if (var4 != null && var4.username.equals(var0)) {
                     return var4;
@@ -4373,10 +4261,10 @@ public class GameServer {
     }
 
     public static IsoPlayer getPlayerByUserName(String var0) {
-        for(int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
-            UdpConnection var2 = (UdpConnection)udpEngine.connections.get(var1);
+        for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
+            UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
 
-            for(int var3 = 0; var3 < 4; ++var3) {
+            for (int var3 = 0; var3 < 4; ++var3) {
                 IsoPlayer var4 = var2.players[var3];
                 if (var4 != null && (var4.getDisplayName().equals(var0) || var4.getUsername().equals(var0))) {
                     return var4;
@@ -4388,10 +4276,10 @@ public class GameServer {
     }
 
     public static IsoPlayer getPlayerByUserNameForCommand(String var0) {
-        for(int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
-            UdpConnection var2 = (UdpConnection)udpEngine.connections.get(var1);
+        for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
+            UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
 
-            for(int var3 = 0; var3 < 4; ++var3) {
+            for (int var3 = 0; var3 < 4; ++var3) {
                 IsoPlayer var4 = var2.players[var3];
                 if (var4 != null && (var4.getDisplayName().toLowerCase().equals(var0.toLowerCase()) || var4.getDisplayName().toLowerCase().startsWith(var0.toLowerCase()))) {
                     return var4;
@@ -4403,11 +4291,11 @@ public class GameServer {
     }
 
     public static UdpConnection getConnectionByPlayerOnlineID(short var0) {
-        return udpEngine.getActiveConnection((Long)IDToAddressMap.get(var0));
+        return udpEngine.getActiveConnection((Long) IDToAddressMap.get(var0));
     }
 
     public static UdpConnection getConnectionFromPlayer(IsoPlayer var0) {
-        Long var1 = (Long)PlayerToAddressMap.get(var0);
+        Long var1 = (Long) PlayerToAddressMap.get(var0);
         return var1 == null ? null : udpEngine.getActiveConnection(var1);
     }
 
@@ -4420,9 +4308,9 @@ public class GameServer {
         if (var7 != null) {
             var7.removeBlood(false, var6);
 
-            for(int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
-                UdpConnection var9 = (UdpConnection)udpEngine.connections.get(var8);
-                if (var9 != var1 && var9.RelevantTo((float)var3, (float)var4)) {
+            for (int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
+                UdpConnection var9 = (UdpConnection) udpEngine.connections.get(var8);
+                if (var9 != var1 && var9.RelevantTo((float) var3, (float) var4)) {
                     ByteBufferWriter var10 = var9.startPacket();
                     PacketTypes.PacketType.RemoveBlood.doPacket(var10);
                     var10.putInt(var3);
@@ -4445,41 +4333,41 @@ public class GameServer {
         if (var2 == null) {
             DebugLog.General.error("container has no parent object");
         } else {
-            IsoGridSquare var3 = ((IsoObject)var2).getSquare();
+            IsoGridSquare var3 = ((IsoObject) var2).getSquare();
             if (var3 == null) {
                 DebugLog.General.error("container parent object has no square");
             } else {
-                for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                    UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
-                    if (var5.RelevantTo((float)var3.x, (float)var3.y)) {
+                for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                    UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
+                    if (var5.RelevantTo((float) var3.x, (float) var3.y)) {
                         ByteBufferWriter var6 = var5.startPacket();
                         PacketTypes.PacketType.AddInventoryItemToContainer.doPacket(var6);
                         if (var2 instanceof IsoDeadBody) {
-                            var6.putShort((short)0);
-                            var6.putInt(((IsoObject)var2).square.getX());
-                            var6.putInt(((IsoObject)var2).square.getY());
-                            var6.putInt(((IsoObject)var2).square.getZ());
-                            var6.putByte((byte)((IsoObject)var2).getStaticMovingObjectIndex());
+                            var6.putShort((short) 0);
+                            var6.putInt(((IsoObject) var2).square.getX());
+                            var6.putInt(((IsoObject) var2).square.getY());
+                            var6.putInt(((IsoObject) var2).square.getZ());
+                            var6.putByte((byte) ((IsoObject) var2).getStaticMovingObjectIndex());
                         } else if (var2 instanceof IsoWorldInventoryObject) {
-                            var6.putShort((short)1);
-                            var6.putInt(((IsoObject)var2).square.getX());
-                            var6.putInt(((IsoObject)var2).square.getY());
-                            var6.putInt(((IsoObject)var2).square.getZ());
-                            var6.putInt(((IsoWorldInventoryObject)var2).getItem().id);
+                            var6.putShort((short) 1);
+                            var6.putInt(((IsoObject) var2).square.getX());
+                            var6.putInt(((IsoObject) var2).square.getY());
+                            var6.putInt(((IsoObject) var2).square.getZ());
+                            var6.putInt(((IsoWorldInventoryObject) var2).getItem().id);
                         } else if (var2 instanceof BaseVehicle) {
-                            var6.putShort((short)3);
-                            var6.putInt(((IsoObject)var2).square.getX());
-                            var6.putInt(((IsoObject)var2).square.getY());
-                            var6.putInt(((IsoObject)var2).square.getZ());
-                            var6.putShort(((BaseVehicle)var2).VehicleID);
-                            var6.putByte((byte)var0.vehiclePart.getIndex());
+                            var6.putShort((short) 3);
+                            var6.putInt(((IsoObject) var2).square.getX());
+                            var6.putInt(((IsoObject) var2).square.getY());
+                            var6.putInt(((IsoObject) var2).square.getZ());
+                            var6.putShort(((BaseVehicle) var2).VehicleID);
+                            var6.putByte((byte) var0.vehiclePart.getIndex());
                         } else {
-                            var6.putShort((short)2);
-                            var6.putInt(((IsoObject)var2).square.getX());
-                            var6.putInt(((IsoObject)var2).square.getY());
-                            var6.putInt(((IsoObject)var2).square.getZ());
-                            var6.putByte((byte)((IsoObject)var2).square.getObjects().indexOf(var2));
-                            var6.putByte((byte)((IsoObject)var2).getContainerIndex(var0));
+                            var6.putShort((short) 2);
+                            var6.putInt(((IsoObject) var2).square.getX());
+                            var6.putInt(((IsoObject) var2).square.getY());
+                            var6.putInt(((IsoObject) var2).square.getZ());
+                            var6.putByte((byte) ((IsoObject) var2).square.getObjects().indexOf(var2));
+                            var6.putByte((byte) ((IsoObject) var2).getContainerIndex(var0));
                         }
 
                         try {
@@ -4505,47 +4393,47 @@ public class GameServer {
         if (var2 == null) {
             DebugLog.log("sendRemoveItemFromContainer: o is null");
         } else {
-            IsoGridSquare var3 = ((IsoObject)var2).getSquare();
+            IsoGridSquare var3 = ((IsoObject) var2).getSquare();
             if (var3 == null) {
                 DebugLog.log("sendRemoveItemFromContainer: square is null");
             } else {
-                for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                    UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
-                    if (var5.RelevantTo((float)var3.x, (float)var3.y)) {
+                for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                    UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
+                    if (var5.RelevantTo((float) var3.x, (float) var3.y)) {
                         ByteBufferWriter var6 = var5.startPacket();
                         PacketTypes.PacketType.RemoveInventoryItemFromContainer.doPacket(var6);
                         if (var2 instanceof IsoDeadBody) {
-                            var6.putShort((short)0);
-                            var6.putInt(((IsoObject)var2).square.getX());
-                            var6.putInt(((IsoObject)var2).square.getY());
-                            var6.putInt(((IsoObject)var2).square.getZ());
-                            var6.putByte((byte)((IsoObject)var2).getStaticMovingObjectIndex());
+                            var6.putShort((short) 0);
+                            var6.putInt(((IsoObject) var2).square.getX());
+                            var6.putInt(((IsoObject) var2).square.getY());
+                            var6.putInt(((IsoObject) var2).square.getZ());
+                            var6.putByte((byte) ((IsoObject) var2).getStaticMovingObjectIndex());
                             var6.putInt(1);
                             var6.putInt(var1.id);
                         } else if (var2 instanceof IsoWorldInventoryObject) {
-                            var6.putShort((short)1);
-                            var6.putInt(((IsoObject)var2).square.getX());
-                            var6.putInt(((IsoObject)var2).square.getY());
-                            var6.putInt(((IsoObject)var2).square.getZ());
-                            var6.putInt(((IsoWorldInventoryObject)var2).getItem().id);
+                            var6.putShort((short) 1);
+                            var6.putInt(((IsoObject) var2).square.getX());
+                            var6.putInt(((IsoObject) var2).square.getY());
+                            var6.putInt(((IsoObject) var2).square.getZ());
+                            var6.putInt(((IsoWorldInventoryObject) var2).getItem().id);
                             var6.putInt(1);
                             var6.putInt(var1.id);
                         } else if (var2 instanceof BaseVehicle) {
-                            var6.putShort((short)3);
-                            var6.putInt(((IsoObject)var2).square.getX());
-                            var6.putInt(((IsoObject)var2).square.getY());
-                            var6.putInt(((IsoObject)var2).square.getZ());
-                            var6.putShort(((BaseVehicle)var2).VehicleID);
-                            var6.putByte((byte)var0.vehiclePart.getIndex());
+                            var6.putShort((short) 3);
+                            var6.putInt(((IsoObject) var2).square.getX());
+                            var6.putInt(((IsoObject) var2).square.getY());
+                            var6.putInt(((IsoObject) var2).square.getZ());
+                            var6.putShort(((BaseVehicle) var2).VehicleID);
+                            var6.putByte((byte) var0.vehiclePart.getIndex());
                             var6.putInt(1);
                             var6.putInt(var1.id);
                         } else {
-                            var6.putShort((short)2);
-                            var6.putInt(((IsoObject)var2).square.getX());
-                            var6.putInt(((IsoObject)var2).square.getY());
-                            var6.putInt(((IsoObject)var2).square.getZ());
-                            var6.putByte((byte)((IsoObject)var2).square.getObjects().indexOf(var2));
-                            var6.putByte((byte)((IsoObject)var2).getContainerIndex(var0));
+                            var6.putShort((short) 2);
+                            var6.putInt(((IsoObject) var2).square.getX());
+                            var6.putInt(((IsoObject) var2).square.getY());
+                            var6.putInt(((IsoObject) var2).square.getZ());
+                            var6.putByte((byte) ((IsoObject) var2).square.getObjects().indexOf(var2));
+                            var6.putByte((byte) ((IsoObject) var2).getContainerIndex(var0));
                             var6.putInt(1);
                             var6.putInt(var1.id);
                         }
@@ -4582,9 +4470,9 @@ public class GameServer {
             var12 = var3.getByte();
             var11 = var0.getInt();
             if (var8 != null && var12 >= 0 && var12 < var8.getStaticMovingObjects().size()) {
-                IsoObject var13 = (IsoObject)var8.getStaticMovingObjects().get(var12);
+                IsoObject var13 = (IsoObject) var8.getStaticMovingObjects().get(var12);
                 if (var13 != null && var13.getContainer() != null) {
-                    for(var14 = 0; var14 < var11; ++var14) {
+                    for (var14 = 0; var14 < var11; ++var14) {
                         var15 = var3.getInt();
                         var16 = var13.getContainer().getItemWithID(var15);
                         if (var16 == null) {
@@ -4606,16 +4494,16 @@ public class GameServer {
                 var11 = var0.getInt();
                 ItemContainer var22 = null;
 
-                for(var14 = 0; var14 < var8.getWorldObjects().size(); ++var14) {
-                    IsoWorldInventoryObject var26 = (IsoWorldInventoryObject)var8.getWorldObjects().get(var14);
+                for (var14 = 0; var14 < var8.getWorldObjects().size(); ++var14) {
+                    IsoWorldInventoryObject var26 = (IsoWorldInventoryObject) var8.getWorldObjects().get(var14);
                     if (var26 != null && var26.getItem() instanceof InventoryContainer && var26.getItem().id == var20) {
-                        var22 = ((InventoryContainer)var26.getItem()).getInventory();
+                        var22 = ((InventoryContainer) var26.getItem()).getInventory();
                         break;
                     }
                 }
 
                 if (var22 != null) {
-                    for(var14 = 0; var14 < var11; ++var14) {
+                    for (var14 = 0; var14 < var11; ++var14) {
                         var15 = var3.getInt();
                         var16 = var22.getItemWithID(var15);
                         if (var16 == null) {
@@ -4638,10 +4526,10 @@ public class GameServer {
                 var24 = var3.getByte();
                 var11 = var0.getInt();
                 if (var8 != null && var12 >= 0 && var12 < var8.getObjects().size()) {
-                    IsoObject var28 = (IsoObject)var8.getObjects().get(var12);
+                    IsoObject var28 = (IsoObject) var8.getObjects().get(var12);
                     ItemContainer var29 = var28 != null ? var28.getContainerByIndex(var24) : null;
                     if (var29 != null) {
-                        for(int var33 = 0; var33 < var11; ++var33) {
+                        for (int var33 = 0; var33 < var11; ++var33) {
                             var17 = var3.getInt();
                             InventoryItem var18 = var29.getItemWithID(var17);
                             if (var18 == null) {
@@ -4667,7 +4555,7 @@ public class GameServer {
                     VehiclePart var31 = var30 == null ? null : var30.getPartByIndex(var24);
                     ItemContainer var34 = var31 == null ? null : var31.getItemContainer();
                     if (var34 != null) {
-                        for(var17 = 0; var17 < var11; ++var17) {
+                        for (var17 = 0; var17 < var11; ++var17) {
                             int var35 = var3.getInt();
                             InventoryItem var19 = var34.getItemWithID(var35);
                             if (var19 == null) {
@@ -4685,9 +4573,9 @@ public class GameServer {
             }
         }
 
-        for(var20 = 0; var20 < udpEngine.connections.size(); ++var20) {
-            UdpConnection var25 = (UdpConnection)udpEngine.connections.get(var20);
-            if (var25.getConnectedGUID() != var1.getConnectedGUID() && var8 != null && var25.RelevantTo((float)var8.x, (float)var8.y)) {
+        for (var20 = 0; var20 < udpEngine.connections.size(); ++var20) {
+            UdpConnection var25 = (UdpConnection) udpEngine.connections.get(var20);
+            if (var25.getConnectedGUID() != var1.getConnectedGUID() && var8 != null && var25.RelevantTo((float) var8.x, (float) var8.y)) {
                 var0.rewind();
                 ByteBufferWriter var32 = var25.startPacket();
                 PacketTypes.PacketType.RemoveInventoryItemFromContainer.doPacket(var32);
@@ -4701,8 +4589,8 @@ public class GameServer {
             PacketTypes.PacketType.RemoveContestedItemsFromInventory.doPacket(var23);
             var23.putInt(alreadyRemoved.size());
 
-            for(int var27 = 0; var27 < alreadyRemoved.size(); ++var27) {
-                var23.putInt((Integer)alreadyRemoved.get(var27));
+            for (int var27 = 0; var27 < alreadyRemoved.size(); ++var27) {
+                var23.putInt((Integer) alreadyRemoved.get(var27));
             }
 
             PacketTypes.PacketType.RemoveContestedItemsFromInventory.send(var1);
@@ -4718,12 +4606,12 @@ public class GameServer {
         boolean var4 = var0.get() == 1;
         var1.setUses(var2);
         if (var1 instanceof DrainableComboItem) {
-            ((DrainableComboItem)var1).setDelta(var3);
-            ((DrainableComboItem)var1).updateWeight();
+            ((DrainableComboItem) var1).setDelta(var3);
+            ((DrainableComboItem) var1).updateWeight();
         }
 
         if (var4 && var1 instanceof Food) {
-            Food var5 = (Food)var1;
+            Food var5 = (Food) var1;
             var5.setHungChange(var0.getFloat());
             var5.setCalories(var0.getFloat());
             var5.setCarbohydrates(var0.getFloat());
@@ -4753,12 +4641,12 @@ public class GameServer {
         int var17;
         ItemContainer var23;
         InventoryItem var25;
-        switch(var3) {
+        switch (var3) {
             case 0:
                 var15 = var0.get();
                 var17 = var0.getInt();
                 if (var7 != null && var15 >= 0 && var15 < var7.getStaticMovingObjects().size()) {
-                    IsoMovingObject var20 = (IsoMovingObject)var7.getStaticMovingObjects().get(var15);
+                    IsoMovingObject var20 = (IsoMovingObject) var7.getStaticMovingObjects().get(var15);
                     var23 = var20.getContainer();
                     if (var23 != null) {
                         var25 = var23.getItemWithID(var17);
@@ -4771,15 +4659,15 @@ public class GameServer {
             case 1:
                 var16 = var0.getInt();
                 if (var7 != null) {
-                    for(var17 = 0; var17 < var7.getWorldObjects().size(); ++var17) {
-                        IsoWorldInventoryObject var19 = (IsoWorldInventoryObject)var7.getWorldObjects().get(var17);
+                    for (var17 = 0; var17 < var7.getWorldObjects().size(); ++var17) {
+                        IsoWorldInventoryObject var19 = (IsoWorldInventoryObject) var7.getWorldObjects().get(var17);
                         if (var19.getItem() != null && var19.getItem().id == var16) {
                             readItemStats(var0, var19.getItem());
                             break;
                         }
 
                         if (var19.getItem() instanceof InventoryContainer) {
-                            var23 = ((InventoryContainer)var19.getItem()).getInventory();
+                            var23 = ((InventoryContainer) var19.getItem()).getInventory();
                             var25 = var23.getItemWithID(var16);
                             if (var25 != null) {
                                 readItemStats(var0, var25);
@@ -4794,7 +4682,7 @@ public class GameServer {
                 var9 = var0.get();
                 var10 = var0.getInt();
                 if (var7 != null && var15 >= 0 && var15 < var7.getObjects().size()) {
-                    IsoObject var21 = (IsoObject)var7.getObjects().get(var15);
+                    IsoObject var21 = (IsoObject) var7.getObjects().get(var15);
                     ItemContainer var24 = var21.getContainerByIndex(var9);
                     if (var24 != null) {
                         InventoryItem var26 = var24.getItemWithID(var10);
@@ -4823,9 +4711,9 @@ public class GameServer {
                 }
         }
 
-        for(var16 = 0; var16 < udpEngine.connections.size(); ++var16) {
-            UdpConnection var18 = (UdpConnection)udpEngine.connections.get(var16);
-            if (var18 != var1 && var18.RelevantTo((float)var4, (float)var5)) {
+        for (var16 = 0; var16 < udpEngine.connections.size(); ++var16) {
+            UdpConnection var18 = (UdpConnection) udpEngine.connections.get(var16);
+            if (var18 != var1 && var18.RelevantTo((float) var4, (float) var5)) {
                 ByteBufferWriter var22 = var18.startPacket();
                 PacketTypes.PacketType.ItemStats.doPacket(var22);
                 var0.rewind();
@@ -4857,7 +4745,7 @@ public class GameServer {
             var11 = var3.getByte();
             var12 = var3.getByte();
             if (var15 != null && var11 >= 0 && var11 < var15.getObjects().size()) {
-                var16 = (IsoObject)var15.getObjects().get(var11);
+                var16 = (IsoObject) var15.getObjects().get(var11);
                 if (var16 != null) {
                     var17 = var16.getContainerByIndex(var12);
                     if (var17 == null || var17.isExplored()) {
@@ -4870,7 +4758,7 @@ public class GameServer {
             var12 = var3.getByte();
             BaseVehicle var24 = VehicleManager.instance.getVehicleByID(var14);
             if (var24 != null) {
-                VehiclePart var18 = ((BaseVehicle)var24).getPartByIndex(var12);
+                VehiclePart var18 = ((BaseVehicle) var24).getPartByIndex(var12);
                 var17 = var18 == null ? null : var18.getItemContainer();
                 if (var17 == null || var17.isExplored()) {
                     return;
@@ -4879,17 +4767,17 @@ public class GameServer {
         } else if (var10 == 1) {
             var13 = var3.getInt();
 
-            for(var25 = 0; var25 < var15.getWorldObjects().size(); ++var25) {
-                IsoWorldInventoryObject var19 = (IsoWorldInventoryObject)var15.getWorldObjects().get(var25);
+            for (var25 = 0; var25 < var15.getWorldObjects().size(); ++var25) {
+                IsoWorldInventoryObject var19 = (IsoWorldInventoryObject) var15.getWorldObjects().get(var25);
                 if (var19 != null && var19.getItem() instanceof InventoryContainer && var19.getItem().id == var13) {
-                    var17 = ((InventoryContainer)var19.getItem()).getInventory();
+                    var17 = ((InventoryContainer) var19.getItem()).getInventory();
                     break;
                 }
             }
         } else if (var10 == 0) {
             var11 = var3.getByte();
             if (var15 != null && var11 >= 0 && var11 < var15.getStaticMovingObjects().size()) {
-                var16 = (IsoObject)var15.getStaticMovingObjects().get(var11);
+                var16 = (IsoObject) var15.getStaticMovingObjects().get(var11);
                 if (var16 != null && var16.getContainer() != null) {
                     if (var16.getContainer().isExplored()) {
                         return;
@@ -4903,11 +4791,11 @@ public class GameServer {
         if (var17 != null && !var17.isExplored()) {
             var17.setExplored(true);
             var25 = var17.Items.size();
-            ItemPickerJava.fillContainer(var17, (IsoPlayer)IDToPlayerMap.get(var4));
+            ItemPickerJava.fillContainer(var17, (IsoPlayer) IDToPlayerMap.get(var4));
             if (var25 != var17.Items.size()) {
-                for(int var26 = 0; var26 < udpEngine.connections.size(); ++var26) {
-                    UdpConnection var20 = (UdpConnection)udpEngine.connections.get(var26);
-                    if (var20.RelevantTo((float)var15.x, (float)var15.y)) {
+                for (int var26 = 0; var26 < udpEngine.connections.size(); ++var26) {
+                    UdpConnection var20 = (UdpConnection) udpEngine.connections.get(var26);
+                    if (var20.RelevantTo((float) var15.x, (float) var15.y)) {
                         ByteBufferWriter var21 = var20.startPacket();
                         PacketTypes.PacketType.AddInventoryItemToContainer.doPacket(var21);
                         var21.putShort(var10);
@@ -4927,7 +4815,7 @@ public class GameServer {
                         }
 
                         try {
-                            CompressIdenticalItems.save(var21.bb, var17.getItems(), (IsoGameCharacter)null);
+                            CompressIdenticalItems.save(var21.bb, var17.getItems(), (IsoGameCharacter) null);
                         } catch (Exception var23) {
                             var23.printStackTrace();
                         }
@@ -4946,13 +4834,13 @@ public class GameServer {
                 DebugLog.log("sendItemsInContainer: container is null");
             } else {
                 if (var0 instanceof IsoWorldInventoryObject) {
-                    IsoWorldInventoryObject var2 = (IsoWorldInventoryObject)var0;
+                    IsoWorldInventoryObject var2 = (IsoWorldInventoryObject) var0;
                     if (!(var2.getItem() instanceof InventoryContainer)) {
                         DebugLog.log("sendItemsInContainer: IsoWorldInventoryObject item isn't a container");
                         return;
                     }
 
-                    InventoryContainer var3 = (InventoryContainer)var2.getItem();
+                    InventoryContainer var3 = (InventoryContainer) var2.getItem();
                     if (var3.getInventory() != var1) {
                         DebugLog.log("sendItemsInContainer: wrong container for IsoWorldInventoryObject");
                         return;
@@ -4973,38 +4861,38 @@ public class GameServer {
                 }
 
                 if (var0 != null && var1 != null && !var1.getItems().isEmpty()) {
-                    for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                        UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
-                        if (var8.RelevantTo((float)var0.square.x, (float)var0.square.y)) {
+                    for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                        UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
+                        if (var8.RelevantTo((float) var0.square.x, (float) var0.square.y)) {
                             ByteBufferWriter var4 = var8.startPacket();
                             PacketTypes.PacketType.AddInventoryItemToContainer.doPacket(var4);
                             if (var0 instanceof IsoDeadBody) {
-                                var4.putShort((short)0);
+                                var4.putShort((short) 0);
                             } else if (var0 instanceof IsoWorldInventoryObject) {
-                                var4.putShort((short)1);
+                                var4.putShort((short) 1);
                             } else if (var0 instanceof BaseVehicle) {
-                                var4.putShort((short)3);
+                                var4.putShort((short) 3);
                             } else {
-                                var4.putShort((short)2);
+                                var4.putShort((short) 2);
                             }
 
                             var4.putInt(var0.getSquare().getX());
                             var4.putInt(var0.getSquare().getY());
                             var4.putInt(var0.getSquare().getZ());
                             if (var0 instanceof IsoDeadBody) {
-                                var4.putByte((byte)var0.getStaticMovingObjectIndex());
+                                var4.putByte((byte) var0.getStaticMovingObjectIndex());
                             } else if (var0 instanceof IsoWorldInventoryObject) {
-                                var4.putInt(((IsoWorldInventoryObject)var0).getItem().id);
+                                var4.putInt(((IsoWorldInventoryObject) var0).getItem().id);
                             } else if (var0 instanceof BaseVehicle) {
-                                var4.putShort(((BaseVehicle)var0).VehicleID);
-                                var4.putByte((byte)var1.vehiclePart.getIndex());
+                                var4.putShort(((BaseVehicle) var0).VehicleID);
+                                var4.putByte((byte) var1.vehiclePart.getIndex());
                             } else {
-                                var4.putByte((byte)var0.getObjectIndex());
-                                var4.putByte((byte)var0.getContainerIndex(var1));
+                                var4.putByte((byte) var0.getObjectIndex());
+                                var4.putByte((byte) var0.getContainerIndex(var1));
                             }
 
                             try {
-                                CompressIdenticalItems.save(var4.bb, var1.getItems(), (IsoGameCharacter)null);
+                                CompressIdenticalItems.save(var4.bb, var1.getItems(), (IsoGameCharacter) null);
                             } catch (Exception var6) {
                                 var6.printStackTrace();
                             }
@@ -5021,9 +4909,9 @@ public class GameServer {
     private static void logDupeItem(UdpConnection var0, String var1) {
         IsoPlayer var2 = null;
 
-        for(int var3 = 0; var3 < Players.size(); ++var3) {
-            if (var0.username.equals(((IsoPlayer)Players.get(var3)).username)) {
-                var2 = (IsoPlayer)Players.get(var3);
+        for (int var3 = 0; var3 < Players.size(); ++var3) {
+            if (var0.username.equals(((IsoPlayer) Players.get(var3)).username)) {
+                var2 = (IsoPlayer) Players.get(var3);
                 break;
             }
         }
@@ -5062,17 +4950,17 @@ public class GameServer {
                     return;
                 }
 
-                IsoObject var14 = (IsoObject)var8.getStaticMovingObjects().get(var13);
+                IsoObject var14 = (IsoObject) var8.getStaticMovingObjects().get(var13);
                 if (var14 != null && var14.getContainer() != null) {
                     var11 = var14.getContainer();
                 }
             } else if (var4 == 1) {
                 int var20 = var3.getInt();
 
-                for(var21 = 0; var21 < var8.getWorldObjects().size(); ++var21) {
-                    IsoWorldInventoryObject var15 = (IsoWorldInventoryObject)var8.getWorldObjects().get(var21);
+                for (var21 = 0; var21 < var8.getWorldObjects().size(); ++var21) {
+                    IsoWorldInventoryObject var15 = (IsoWorldInventoryObject) var8.getWorldObjects().get(var21);
                     if (var15 != null && var15.getItem() instanceof InventoryContainer && var15.getItem().id == var20) {
-                        var11 = ((InventoryContainer)var15.getItem()).getInventory();
+                        var11 = ((InventoryContainer) var15.getItem()).getInventory();
                         break;
                     }
                 }
@@ -5089,9 +4977,9 @@ public class GameServer {
                     if (var13 < 0 || var13 >= var8.getObjects().size()) {
                         DebugLog.log("ERROR sendItemsToContainer invalid object index");
 
-                        for(int var24 = 0; var24 < var8.getObjects().size(); ++var24) {
-                            if (((IsoObject)var8.getObjects().get(var24)).getContainer() != null) {
-                                var13 = (byte)var24;
+                        for (int var24 = 0; var24 < var8.getObjects().size(); ++var24) {
+                            if (((IsoObject) var8.getObjects().get(var24)).getContainer() != null) {
+                                var13 = (byte) var24;
                                 var22 = 0;
                                 break;
                             }
@@ -5102,7 +4990,7 @@ public class GameServer {
                         }
                     }
 
-                    var12 = (IsoObject)var8.getObjects().get(var13);
+                    var12 = (IsoObject) var8.getObjects().get(var13);
                     var11 = var12 != null ? var12.getContainerByIndex(var22) : null;
                 } else if (var4 == 3) {
                     short var23 = var3.getShort();
@@ -5120,10 +5008,10 @@ public class GameServer {
 
             if (var11 != null) {
                 try {
-                    ArrayList var25 = CompressIdenticalItems.load(var3.bb, 195, (ArrayList)null, (ArrayList)null);
+                    ArrayList var25 = CompressIdenticalItems.load(var3.bb, 195, (ArrayList) null, (ArrayList) null);
 
-                    for(var21 = 0; var21 < var25.size(); ++var21) {
-                        InventoryItem var28 = (InventoryItem)var25.get(var21);
+                    for (var21 = 0; var21 < var25.size(); ++var21) {
+                        InventoryItem var28 = (InventoryItem) var25.get(var21);
                         if (var28 != null) {
                             if (var11.containsID(var28.id)) {
                                 System.out.println("Error: Dupe item ID for " + var1.username);
@@ -5133,7 +5021,7 @@ public class GameServer {
                                 var11.setExplored(true);
                                 var9.add(var28.getFullType());
                                 if (var12 instanceof IsoMannequin) {
-                                    ((IsoMannequin)var12).wearItem(var28, (IsoGameCharacter)null);
+                                    ((IsoMannequin) var12).wearItem(var28, (IsoGameCharacter) null);
                                 }
                             }
                         }
@@ -5151,9 +5039,9 @@ public class GameServer {
             }
         }
 
-        for(int var18 = 0; var18 < udpEngine.connections.size(); ++var18) {
-            UdpConnection var19 = (UdpConnection)udpEngine.connections.get(var18);
-            if (var19.getConnectedGUID() != var1.getConnectedGUID() && var19.RelevantTo((float)var8.x, (float)var8.y)) {
+        for (int var18 = 0; var18 < udpEngine.connections.size(); ++var18) {
+            UdpConnection var19 = (UdpConnection) udpEngine.connections.get(var18);
+            if (var19.getConnectedGUID() != var1.getConnectedGUID() && var19.RelevantTo((float) var8.x, (float) var8.y)) {
                 var0.rewind();
                 ByteBufferWriter var26 = var19.startPacket();
                 PacketTypes.PacketType.AddInventoryItemToContainer.doPacket(var26);
@@ -5166,21 +5054,21 @@ public class GameServer {
     }
 
     public static void addConnection(UdpConnection var0) {
-        synchronized(MainLoopNetDataHighPriorityQ) {
+        synchronized (MainLoopNetDataHighPriorityQ) {
             MainLoopNetDataHighPriorityQ.add(new GameServer.DelayedConnection(var0, true));
         }
     }
 
     public static void addDisconnect(UdpConnection var0) {
-        synchronized(MainLoopNetDataHighPriorityQ) {
+        synchronized (MainLoopNetDataHighPriorityQ) {
             MainLoopNetDataHighPriorityQ.add(new GameServer.DelayedConnection(var0, false));
         }
     }
 
-    public static IsoPlayer getPlayerByUsername(String username){
+    public static IsoPlayer getPlayerByUsername(String username) {
         ArrayList<IsoPlayer> players = GameServer.getPlayers();
-        for (IsoPlayer player : players){
-            if(player.getDisplayName().equals(username)){
+        for (IsoPlayer player : players) {
+            if (player.getDisplayName().equals(username)) {
                 return player;
             }
         }
@@ -5190,10 +5078,11 @@ public class GameServer {
 
     /**
      * Получение активного подключения игрока по нику
+     *
      * @param username Ник игрока
      * @return активное подключение UdpConnection, либо null если такой игрок не найден
      */
-    public static UdpConnection getPlayerUdpConnectionByUsername(String username){
+    public static UdpConnection getPlayerUdpConnectionByUsername(String username) {
         IsoPlayer player = getPlayerByUsername(username);
         if (player == null) {
             DebugLog.log("Couldn't find an instance of a player with a nickname: " + username);
@@ -5297,8 +5186,8 @@ public class GameServer {
             if (var6 != null && var6.isOwner(var0)) {
                 Iterator var3 = IDToPlayerMap.values().iterator();
 
-                while(var3.hasNext()) {
-                    IsoPlayer var4 = (IsoPlayer)var3.next();
+                while (var3.hasNext()) {
+                    IsoPlayer var4 = (IsoPlayer) var3.next();
                     var6.checkTrespass(var4);
                 }
             }
@@ -5309,8 +5198,8 @@ public class GameServer {
             var1.ReleventPos[var0.PlayerIndex] = null;
             var1.connectArea[var0.PlayerIndex] = null;
 
-            for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+            for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
                 ByteBufferWriter var5 = var8.startPacket();
                 PacketTypes.PacketType.PlayerTimeout.doPacket(var5);
                 var5.putShort(var0.OnlineID);
@@ -5333,7 +5222,7 @@ public class GameServer {
     }
 
     public static short getFreeSlot() {
-        for(short var0 = 0; var0 < udpEngine.getMaxConnections(); ++var0) {
+        for (short var0 = 0; var0 < udpEngine.getMaxConnections(); ++var0) {
             if (SlotToConnection[var0] == null) {
                 return var0;
             }
@@ -5345,7 +5234,7 @@ public class GameServer {
     public static void receiveClientConnect(UdpConnection var0, ServerWorldDatabase.LogonResult var1) {
         ConnectionManager.log("receive-packet", "client-connect", var0);
         short var2 = getFreeSlot();
-        short var3 = (short)(var2 * 4);
+        short var3 = (short) (var2 * 4);
         if (var0.playerDownloadServer != null) {
             try {
                 IDToAddressMap.put(var3, var0.getConnectedGUID());
@@ -5365,13 +5254,13 @@ public class GameServer {
         var0.playerDownloadServer.startConnectionTest();
         KahluaTable var4 = SpawnPoints.instance.getSpawnRegions();
 
-        for(int var5 = 1; var5 < var4.size() + 1; ++var5) {
+        for (int var5 = 1; var5 < var4.size() + 1; ++var5) {
             ByteBufferWriter var6 = var0.startPacket();
             PacketTypes.PacketType.SpawnRegion.doPacket(var6);
             var6.putInt(var5);
 
             try {
-                ((KahluaTable)var4.rawget(var5)).save(var6.bb);
+                ((KahluaTable) var4.rawget(var5)).save(var6.bb);
                 PacketTypes.PacketType.SpawnRegion.send(var0);
             } catch (IOException var8) {
                 var8.printStackTrace();
@@ -5394,26 +5283,26 @@ public class GameServer {
         IsoGridSquare var10 = ServerMap.instance.getGridSquare(var4, var5, var6);
         if (var10 != null) {
             if (var7 >= 0 && var7 < var10.getObjects().size()) {
-                IsoObject var11 = (IsoObject)var10.getObjects().get(var7);
+                IsoObject var11 = (IsoObject) var10.getObjects().get(var7);
                 if (var11 != null) {
                     ItemContainer var12 = var11.getContainerByIndex(var8);
                     if (var12 != null) {
                         InventoryItem var13 = var12.getItemWithID(var9);
                         if (var13 != null) {
-                            Food var14 = (Food)Type.tryCastTo(var13, Food.class);
+                            Food var14 = (Food) Type.tryCastTo(var13, Food.class);
                             if (var14 != null) {
                                 if (var14.getReplaceOnCooked() != null && !var14.isRotten()) {
-                                    for(int var15 = 0; var15 < var14.getReplaceOnCooked().size(); ++var15) {
-                                        InventoryItem var16 = var12.AddItem((String)var14.getReplaceOnCooked().get(var15));
+                                    for (int var15 = 0; var15 < var14.getReplaceOnCooked().size(); ++var15) {
+                                        InventoryItem var16 = var12.AddItem((String) var14.getReplaceOnCooked().get(var15));
                                         if (var16 != null) {
                                             var16.copyConditionModData(var14);
                                             if (var16 instanceof Food && var14 instanceof Food) {
                                             }
 
-                                            if (var16 instanceof Food && ((Food)var16).isBadInMicrowave() && var12.isMicrowave()) {
+                                            if (var16 instanceof Food && ((Food) var16).isBadInMicrowave() && var12.isMicrowave()) {
                                                 var16.setUnhappyChange(5.0F);
                                                 var16.setBoredomChange(5.0F);
-                                                ((Food)var16).setCookedInMicrowave(true);
+                                                ((Food) var16).setCookedInMicrowave(true);
                                             }
 
                                             sendAddItemToContainer(var12, var16);
@@ -5421,8 +5310,8 @@ public class GameServer {
                                     }
 
                                     sendRemoveItemFromContainer(var12, var14);
-                                    var12.Remove((InventoryItem)var14);
-                                    IsoWorld.instance.CurrentCell.addToProcessItemsRemove((InventoryItem)var14);
+                                    var12.Remove((InventoryItem) var14);
+                                    IsoWorld.instance.CurrentCell.addToProcessItemsRemove((InventoryItem) var14);
                                 }
                             }
                         }
@@ -5454,9 +5343,9 @@ public class GameServer {
             if (var5.info != null && var2 >= 0 && var2 < var5.info.RoomList.size()) {
                 ByteBufferWriter var6 = var3.startPacket();
                 PacketTypes.PacketType.MetaGrid.doPacket(var6);
-                var6.putShort((short)var0);
-                var6.putShort((short)var1);
-                var6.putShort((short)var2);
+                var6.putShort((short) var0);
+                var6.putShort((short) var1);
+                var6.putShort((short) var2);
                 var6.putBoolean(var5.info.getRoom(var2).def.bLightsActive);
                 PacketTypes.PacketType.MetaGrid.send(var3);
             }
@@ -5464,8 +5353,8 @@ public class GameServer {
     }
 
     public static void sendMetaGrid(int var0, int var1, int var2) {
-        for(int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
-            UdpConnection var4 = (UdpConnection)udpEngine.connections.get(var3);
+        for (int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
+            UdpConnection var4 = (UdpConnection) udpEngine.connections.get(var3);
             sendMetaGrid(var0, var1, var2, var4);
         }
 
@@ -5479,8 +5368,8 @@ public class GameServer {
             var3.getBuilding().setAlarmed(false);
             ArrayList var5 = IsoWorld.instance.CurrentCell.getZombieList();
 
-            for(int var6 = 0; var6 < var5.size(); ++var6) {
-                IsoZombie var7 = (IsoZombie)var5.get(var6);
+            for (int var6 = 0; var6 < var5.size(); ++var6) {
+                IsoZombie var7 = (IsoZombie) var5.get(var6);
                 if ((var4 || var7.bIndoorZombie) && var7.getSquare() != null && var7.getSquare().getRoom() != null && var7.getSquare().getRoom().def.building == var3.getBuilding()) {
                     VirtualZombieManager.instance.removeZombieFromWorld(var7);
                     if (var6 >= var5.size() || var5.get(var6) != var7) {
@@ -5497,8 +5386,8 @@ public class GameServer {
         DebugLog.General.println("User:'" + var2 + "' ip:" + var1.ip + " is trying to connect");
         byte var3 = var0.get();
         if (var3 >= 0 && var3 < 4 && var1.players[var3] == null) {
-            byte var4 = (byte)Math.min(20, var0.get());
-            var1.ReleventRange = (byte)(var4 / 2 + 2);
+            byte var4 = (byte) Math.min(20, var0.get());
+            var1.ReleventRange = (byte) (var4 / 2 + 2);
             float var5 = var0.getFloat();
             float var6 = var0.getFloat();
             float var7 = var0.getFloat();
@@ -5507,19 +5396,19 @@ public class GameServer {
             var1.ReleventPos[var3].z = var7;
             var1.connectArea[var3] = null;
             var1.ChunkGridWidth = var4;
-            var1.loadedCells[var3] = new ClientServerMap(var3, (int)var5, (int)var6, var4);
+            var1.loadedCells[var3] = new ClientServerMap(var3, (int) var5, (int) var6, var4);
             SurvivorDesc var8 = SurvivorFactory.CreateSurvivor();
 
             try {
-                var8.load(var0, 195, (IsoGameCharacter)null);
+                var8.load(var0, 195, (IsoGameCharacter) null);
             } catch (IOException var23) {
                 var23.printStackTrace();
             }
 
-            IsoPlayer var9 = new IsoPlayer((IsoCell)null, var8, (int)var5, (int)var6, (int)var7);
+            IsoPlayer var9 = new IsoPlayer((IsoCell) null, var8, (int) var5, (int) var6, (int) var7);
             var9.realx = var5;
             var9.realy = var6;
-            var9.realz = (byte)((int)var7);
+            var9.realz = (byte) ((int) var7);
             var9.PlayerIndex = var3;
             var9.OnlineChunkGridWidth = var4;
             Players.add(var9);
@@ -5604,7 +5493,7 @@ public class GameServer {
             int var14 = var0.getInt();
 
             int var15;
-            for(var15 = 0; var15 < var14; ++var15) {
+            for (var15 = 0; var15 < var14; ++var15) {
                 String var16 = GameWindow.ReadString(var0);
                 InventoryItem var17 = InventoryItemFactory.CreateItem(GameWindow.ReadString(var0));
                 if (var17 != null) {
@@ -5627,16 +5516,16 @@ public class GameServer {
             sendWeather(var1);
             SafetySystemManager.restoreSafety(var9);
 
-            for(int var26 = 0; var26 < udpEngine.connections.size(); ++var26) {
-                UdpConnection var28 = (UdpConnection)udpEngine.connections.get(var26);
+            for (int var26 = 0; var26 < udpEngine.connections.size(); ++var26) {
+                UdpConnection var28 = (UdpConnection) udpEngine.connections.get(var26);
                 sendPlayerConnect(var9, var28);
             }
 
             SyncInjuriesPacket var27 = new SyncInjuriesPacket();
             Iterator var29 = IDToPlayerMap.values().iterator();
 
-            while(var29.hasNext()) {
-                IsoPlayer var18 = (IsoPlayer)var29.next();
+            while (var29.hasNext()) {
+                IsoPlayer var18 = (IsoPlayer) var29.next();
                 if (var18.getOnlineID() != var9.getOnlineID() && var18.isAlive()) {
                     sendPlayerConnect(var18, var1);
                     var27.set(var18);
@@ -5646,7 +5535,7 @@ public class GameServer {
 
             var1.loadedCells[var3].setLoaded();
             var1.loadedCells[var3].sendPacket(var1);
-            preventIndoorZombies((int)var5, (int)var6, (int)var7);
+            preventIndoorZombies((int) var5, (int) var6, (int) var7);
             ServerLOS.instance.addPlayer(var9);
             ZLogger var10000 = LoggerManager.getLogger("user");
             String var10001 = var1.idStr;
@@ -5655,8 +5544,8 @@ public class GameServer {
             try {
                 var29 = NonPvpZone.getAllZones().iterator();
 
-                while(var29.hasNext()) {
-                    NonPvpZone var30 = (NonPvpZone)var29.next();
+                while (var29.hasNext()) {
+                    NonPvpZone var30 = (NonPvpZone) var29.next();
                     sendNonPvpZone(var30, false, var1);
                 }
             } catch (Exception var24) {
@@ -5691,7 +5580,7 @@ public class GameServer {
         ByteBufferWriter var2 = var1.startPacket();
         PacketTypes.PacketType.AddCoopPlayer.doPacket(var2);
         var2.putBoolean(true);
-        var2.putByte((byte)var0);
+        var2.putByte((byte) var0);
         PacketTypes.PacketType.AddCoopPlayer.send(var1);
     }
 
@@ -5699,7 +5588,7 @@ public class GameServer {
         ByteBufferWriter var3 = var2.startPacket();
         PacketTypes.PacketType.AddCoopPlayer.doPacket(var3);
         var3.putBoolean(false);
-        var3.putByte((byte)var1);
+        var3.putByte((byte) var1);
         var3.putUTF(var0);
         PacketTypes.PacketType.AddCoopPlayer.send(var2);
     }
@@ -5729,10 +5618,10 @@ public class GameServer {
                     if (var5.isEmpty()) {
                         coopAccessDenied("No username given", var4, var1);
                     } else {
-                        for(int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
-                            UdpConnection var7 = (UdpConnection)udpEngine.connections.get(var6);
+                        for (int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
+                            UdpConnection var7 = (UdpConnection) udpEngine.connections.get(var6);
 
-                            for(int var8 = 0; var8 < 4; ++var8) {
+                            for (int var8 = 0; var8 < 4; ++var8) {
                                 if ((var7 != var1 || var4 != var8) && var5.equals(var7.usernames[var8])) {
                                     coopAccessDenied("User \"" + var5 + "\" already connected", var4, var1);
                                     return;
@@ -5751,7 +5640,7 @@ public class GameServer {
                             var13 = var0.getFloat();
                             var1.usernames[var4] = var5;
                             var1.ReleventPos[var4] = new Vector3(var12, var13, 0.0F);
-                            var1.connectArea[var4] = new Vector3(var12 / 10.0F, var13 / 10.0F, (float)var1.ChunkGridWidth);
+                            var1.connectArea[var4] = new Vector3(var12 / 10.0F, var13 / 10.0F, (float) var1.ChunkGridWidth);
                             var1.playerIDs[var4] = var10;
                             IDToAddressMap.put(var10, var1.getConnectedGUID());
                             coopAccessGranted(var4, var1);
@@ -5766,21 +5655,21 @@ public class GameServer {
                             var10 = -1;
 
                             short var11;
-                            for(var11 = 0; var11 < udpEngine.getMaxConnections(); ++var11) {
+                            for (var11 = 0; var11 < udpEngine.getMaxConnections(); ++var11) {
                                 if (SlotToConnection[var11] == var1) {
                                     var10 = var11;
                                     break;
                                 }
                             }
 
-                            var11 = (short)(var10 * 4 + var4);
+                            var11 = (short) (var10 * 4 + var4);
                             DebugLog.log("coop player=" + (var4 + 1) + "/4 username=\"" + var5 + "\" assigned id=" + var11);
                             var13 = var0.getFloat();
                             float var9 = var0.getFloat();
                             var1.usernames[var4] = var5;
                             var1.ReleventPos[var4] = new Vector3(var13, var9, 0.0F);
                             var1.playerIDs[var4] = var11;
-                            var1.connectArea[var4] = new Vector3(var13 / 10.0F, var9 / 10.0F, (float)var1.ChunkGridWidth);
+                            var1.connectArea[var4] = new Vector3(var13 / 10.0F, var9 / 10.0F, (float) var1.ChunkGridWidth);
                             IDToAddressMap.put(var11, var1.getConnectedGUID());
                             coopAccessGranted(var4, var1);
                             ZombiePopulationManager.instance.updateLoadedAreas();
@@ -5820,13 +5709,13 @@ public class GameServer {
         boolean var7 = var0.get() == 1;
         IsoGridSquare var8 = IsoWorld.instance.CurrentCell.getGridSquare(var3, var4, var5);
         if (var8 != null && var6 >= 0 && var6 < var8.getObjects().size()) {
-            IsoObject var9 = (IsoObject)var8.getObjects().get(var6);
+            IsoObject var9 = (IsoObject) var8.getObjects().get(var6);
             int var10;
             if (var7) {
                 var10 = var9.getWaterAmount();
 
                 try {
-                    var9.getModData().load((ByteBuffer)var0, 195);
+                    var9.getModData().load((ByteBuffer) var0, 195);
                 } catch (IOException var12) {
                     var12.printStackTrace();
                 }
@@ -5838,9 +5727,9 @@ public class GameServer {
                 var9.getModData().wipe();
             }
 
-            for(var10 = 0; var10 < udpEngine.connections.size(); ++var10) {
-                UdpConnection var11 = (UdpConnection)udpEngine.connections.get(var10);
-                if (var11.getConnectedGUID() != var1.getConnectedGUID() && var11.RelevantTo((float)var3, (float)var4)) {
+            for (var10 = 0; var10 < udpEngine.connections.size(); ++var10) {
+                UdpConnection var11 = (UdpConnection) udpEngine.connections.get(var10);
+                if (var11.getConnectedGUID() != var1.getConnectedGUID() && var11.RelevantTo((float) var3, (float) var4)) {
                     sendObjectModData(var9, var11);
                 }
             }
@@ -5861,9 +5750,9 @@ public class GameServer {
             var2.putInt(var0.getSquare().getZ());
             var2.putInt(var0.getSquare().getObjects().indexOf(var0));
             if (var0.getModData().isEmpty()) {
-                var2.putByte((byte)0);
+                var2.putByte((byte) 0);
             } else {
-                var2.putByte((byte)1);
+                var2.putByte((byte) 1);
 
                 try {
                     var0.getModData().save(var2.bb);
@@ -5878,8 +5767,8 @@ public class GameServer {
 
     public static void sendObjectModData(IsoObject var0) {
         if (!bSoftReset && !bFastForward) {
-            for(int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
-                UdpConnection var2 = (UdpConnection)udpEngine.connections.get(var1);
+            for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
+                UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
                 if (var2.RelevantTo(var0.getX(), var0.getY())) {
                     sendObjectModData(var0, var2);
                 }
@@ -5891,12 +5780,12 @@ public class GameServer {
     public static void sendSlowFactor(IsoGameCharacter var0) {
         if (var0 instanceof IsoPlayer) {
             if (PlayerToAddressMap.containsKey(var0)) {
-                long var1 = (Long)PlayerToAddressMap.get((IsoPlayer)var0);
+                long var1 = (Long) PlayerToAddressMap.get((IsoPlayer) var0);
                 UdpConnection var3 = udpEngine.getActiveConnection(var1);
                 if (var3 != null) {
                     ByteBufferWriter var4 = var3.startPacket();
                     PacketTypes.PacketType.SlowFactor.doPacket(var4);
-                    var4.putByte((byte)((IsoPlayer)var0).PlayerIndex);
+                    var4.putByte((byte) ((IsoPlayer) var0).PlayerIndex);
                     var4.putFloat(var0.getSlowTimer());
                     var4.putFloat(var0.getSlowFactor());
                     PacketTypes.PacketType.SlowFactor.send(var3);
@@ -5910,25 +5799,25 @@ public class GameServer {
             ByteBufferWriter var4 = var3.startPacket();
             PacketTypes.PacketType.ObjectChange.doPacket(var4);
             if (var0 instanceof IsoPlayer) {
-                var4.putByte((byte)1);
-                var4.putShort(((IsoPlayer)var0).OnlineID);
+                var4.putByte((byte) 1);
+                var4.putShort(((IsoPlayer) var0).OnlineID);
             } else if (var0 instanceof BaseVehicle) {
-                var4.putByte((byte)2);
-                var4.putShort(((BaseVehicle)var0).getId());
+                var4.putByte((byte) 2);
+                var4.putShort(((BaseVehicle) var0).getId());
             } else if (var0 instanceof IsoWorldInventoryObject) {
-                var4.putByte((byte)3);
+                var4.putByte((byte) 3);
                 var4.putInt(var0.getSquare().getX());
                 var4.putInt(var0.getSquare().getY());
                 var4.putInt(var0.getSquare().getZ());
-                var4.putInt(((IsoWorldInventoryObject)var0).getItem().getID());
+                var4.putInt(((IsoWorldInventoryObject) var0).getItem().getID());
             } else if (var0 instanceof IsoDeadBody) {
-                var4.putByte((byte)4);
+                var4.putByte((byte) 4);
                 var4.putInt(var0.getSquare().getX());
                 var4.putInt(var0.getSquare().getY());
                 var4.putInt(var0.getSquare().getZ());
                 var4.putInt(var0.getStaticMovingObjectIndex());
             } else {
-                var4.putByte((byte)0);
+                var4.putByte((byte) 0);
                 var4.putInt(var0.getSquare().getX());
                 var4.putInt(var0.getSquare().getY());
                 var4.putInt(var0.getSquare().getZ());
@@ -5944,8 +5833,8 @@ public class GameServer {
     public static void sendObjectChange(IsoObject var0, String var1, KahluaTable var2) {
         if (!bSoftReset) {
             if (var0 != null) {
-                for(int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
-                    UdpConnection var4 = (UdpConnection)udpEngine.connections.get(var3);
+                for (int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
+                    UdpConnection var4 = (UdpConnection) udpEngine.connections.get(var3);
                     if (var4.RelevantTo(var0.getX(), var0.getY())) {
                         sendObjectChange(var0, var1, var2, var4);
                     }
@@ -5958,18 +5847,18 @@ public class GameServer {
     public static void sendObjectChange(IsoObject var0, String var1, Object... var2) {
         if (!bSoftReset) {
             if (var2.length == 0) {
-                sendObjectChange(var0, var1, (KahluaTable)null);
+                sendObjectChange(var0, var1, (KahluaTable) null);
             } else if (var2.length % 2 == 0) {
                 KahluaTable var3 = LuaManager.platform.newTable();
 
-                for(int var4 = 0; var4 < var2.length; var4 += 2) {
+                for (int var4 = 0; var4 < var2.length; var4 += 2) {
                     Object var5 = var2[var4 + 1];
                     if (var5 instanceof Float) {
-                        var3.rawset(var2[var4], ((Float)var5).doubleValue());
+                        var3.rawset(var2[var4], ((Float) var5).doubleValue());
                     } else if (var5 instanceof Integer) {
-                        var3.rawset(var2[var4], ((Integer)var5).doubleValue());
+                        var3.rawset(var2[var4], ((Integer) var5).doubleValue());
                     } else if (var5 instanceof Short) {
-                        var3.rawset(var2[var4], ((Short)var5).doubleValue());
+                        var3.rawset(var2[var4], ((Short) var5).doubleValue());
                     } else {
                         var3.rawset(var2[var4], var5);
                     }
@@ -5984,16 +5873,16 @@ public class GameServer {
         ByteBufferWriter var2 = var0.startPacket();
         PacketTypes.PacketType.Equip.doPacket(var2);
         var2.putShort(var1.OnlineID);
-        var2.putByte((byte)0);
-        var2.putByte((byte)(var1.getPrimaryHandItem() != null ? 1 : 0));
+        var2.putByte((byte) 0);
+        var2.putByte((byte) (var1.getPrimaryHandItem() != null ? 1 : 0));
         if (var1.getPrimaryHandItem() != null) {
             try {
                 var1.getPrimaryHandItem().saveWithSize(var2.bb, false);
                 if (var1.getPrimaryHandItem().getVisual() != null) {
-                    var2.bb.put((byte)1);
+                    var2.bb.put((byte) 1);
                     var1.getPrimaryHandItem().getVisual().save(var2.bb);
                 } else {
-                    var2.bb.put((byte)0);
+                    var2.bb.put((byte) 0);
                 }
             } catch (IOException var5) {
                 var5.printStackTrace();
@@ -6004,21 +5893,21 @@ public class GameServer {
         var2 = var0.startPacket();
         PacketTypes.PacketType.Equip.doPacket(var2);
         var2.putShort(var1.OnlineID);
-        var2.putByte((byte)1);
+        var2.putByte((byte) 1);
         if (var1.getSecondaryHandItem() == var1.getPrimaryHandItem() && var1.getSecondaryHandItem() != null) {
-            var2.putByte((byte)2);
+            var2.putByte((byte) 2);
         } else {
-            var2.putByte((byte)(var1.getSecondaryHandItem() != null ? 1 : 0));
+            var2.putByte((byte) (var1.getSecondaryHandItem() != null ? 1 : 0));
         }
 
         if (var1.getSecondaryHandItem() != null) {
             try {
                 var1.getSecondaryHandItem().saveWithSize(var2.bb, false);
                 if (var1.getSecondaryHandItem().getVisual() != null) {
-                    var2.bb.put((byte)1);
+                    var2.bb.put((byte) 1);
                     var1.getSecondaryHandItem().getVisual().save(var2.bb);
                 } else {
-                    var2.bb.put((byte)0);
+                    var2.bb.put((byte) 0);
                 }
             } catch (IOException var4) {
                 var4.printStackTrace();
@@ -6036,7 +5925,7 @@ public class GameServer {
         IsoGridSquare var7 = ServerMap.instance.getGridSquare(var3, var4, var5);
         if (var7 != null && var6 >= 0 && var6 < var7.getObjects().size()) {
             if (var7.getObjects().get(var6) instanceof IsoLightSwitch) {
-                ((IsoLightSwitch)var7.getObjects().get(var6)).receiveSyncCustomizedSettings(var0, var1);
+                ((IsoLightSwitch) var7.getObjects().get(var6)).receiveSyncCustomizedSettings(var0, var1);
             } else {
                 DebugLog.log("Sync Lightswitch custom settings: found object not a instance of IsoLightSwitch, x,y,z=" + var3 + "," + var4 + "," + var5);
             }
@@ -6054,11 +5943,11 @@ public class GameServer {
         var7.putShort(AlarmClock.PacketPlayer);
         var7.putShort(var0);
         var7.putInt(var1);
-        var7.putByte((byte)(var2 ? 1 : 0));
+        var7.putByte((byte) (var2 ? 1 : 0));
         if (!var2) {
             var7.putInt(var3);
             var7.putInt(var4);
-            var7.putByte((byte)(var5 ? 1 : 0));
+            var7.putByte((byte) (var5 ? 1 : 0));
         }
 
         PacketTypes.PacketType.SyncAlarmClock.send(var6);
@@ -6072,11 +5961,11 @@ public class GameServer {
         var9.putInt(var1);
         var9.putInt(var2);
         var9.putInt(var3);
-        var9.putByte((byte)(var4 ? 1 : 0));
+        var9.putByte((byte) (var4 ? 1 : 0));
         if (!var4) {
             var9.putInt(var5);
             var9.putInt(var6);
-            var9.putByte((byte)(var7 ? 1 : 0));
+            var9.putByte((byte) (var7 ? 1 : 0));
         }
 
         PacketTypes.PacketType.SyncAlarmClock.send(var8);
@@ -6101,8 +5990,8 @@ public class GameServer {
 
             IsoPlayer var20 = getPlayerFromConnection(var1, var16);
             if (var20 != null) {
-                for(int var21 = 0; var21 < udpEngine.connections.size(); ++var21) {
-                    UdpConnection var22 = (UdpConnection)udpEngine.connections.get(var21);
+                for (int var21 = 0; var21 < udpEngine.connections.size(); ++var21) {
+                    UdpConnection var22 = (UdpConnection) udpEngine.connections.get(var21);
                     if (var22 != var1) {
                         sendAlarmClock_Player(var20.getOnlineID(), var5, var17, var7, var18, var19, var22);
                     }
@@ -6131,10 +6020,10 @@ public class GameServer {
                 AlarmClock var13 = null;
 
                 int var14;
-                for(var14 = 0; var14 < var12.getWorldObjects().size(); ++var14) {
-                    IsoWorldInventoryObject var15 = (IsoWorldInventoryObject)var12.getWorldObjects().get(var14);
+                for (var14 = 0; var14 < var12.getWorldObjects().size(); ++var14) {
+                    IsoWorldInventoryObject var15 = (IsoWorldInventoryObject) var12.getWorldObjects().get(var14);
                     if (var15 != null && var15.getItem() instanceof AlarmClock && var15.getItem().id == var7) {
-                        var13 = (AlarmClock)var15.getItem();
+                        var13 = (AlarmClock) var15.getItem();
                         break;
                     }
                 }
@@ -6150,8 +6039,8 @@ public class GameServer {
                         var13.setAlarmSet(var11);
                     }
 
-                    for(var14 = 0; var14 < udpEngine.connections.size(); ++var14) {
-                        UdpConnection var23 = (UdpConnection)udpEngine.connections.get(var14);
+                    for (var14 = 0; var14 < udpEngine.connections.size(); ++var14) {
+                        UdpConnection var23 = (UdpConnection) udpEngine.connections.get(var14);
                         if (var23 != var1) {
                             sendAlarmClock_World(var4, var5, var6, var7, var8, var9, var10, var11, var23);
                         }
@@ -6173,7 +6062,7 @@ public class GameServer {
             if (var7 == 1) {
                 IsoGridSquare var9 = ServerMap.instance.getGridSquare(var3, var4, var5);
                 if (var9 != null && var6 >= 0 && var6 < var9.getObjects().size()) {
-                    ((IsoObject)var9.getObjects().get(var6)).syncIsoObject(true, var8, var1, var0);
+                    ((IsoObject) var9.getObjects().get(var6)).syncIsoObject(true, var8, var1, var0);
                 } else if (var9 != null) {
                     DebugLog.log("SyncIsoObject: index=" + var6 + " is invalid x,y,z=" + var3 + "," + var4 + "," + var5);
                 } else {
@@ -6191,28 +6080,28 @@ public class GameServer {
             PacketTypes.PacketType.SyncIsoObjectReq.doPacket(var4);
             var4.putShort(var3);
 
-            for(int var5 = 0; var5 < var3; ++var5) {
+            for (int var5 = 0; var5 < var3; ++var5) {
                 int var6 = var0.getInt();
                 int var7 = var0.getInt();
                 int var8 = var0.getInt();
                 byte var9 = var0.get();
                 IsoGridSquare var10 = ServerMap.instance.getGridSquare(var6, var7, var8);
                 if (var10 != null && var9 >= 0 && var9 < var10.getObjects().size()) {
-                    ((IsoObject)var10.getObjects().get(var9)).syncIsoObjectSend(var4);
+                    ((IsoObject) var10.getObjects().get(var9)).syncIsoObjectSend(var4);
                 } else if (var10 != null) {
                     var4.putInt(var10.getX());
                     var4.putInt(var10.getY());
                     var4.putInt(var10.getZ());
                     var4.putByte(var9);
-                    var4.putByte((byte)0);
-                    var4.putByte((byte)0);
+                    var4.putByte((byte) 0);
+                    var4.putByte((byte) 0);
                 } else {
                     var4.putInt(var6);
                     var4.putInt(var7);
                     var4.putInt(var8);
                     var4.putByte(var9);
-                    var4.putByte((byte)2);
-                    var4.putByte((byte)0);
+                    var4.putByte((byte) 2);
+                    var4.putByte((byte) 0);
                 }
             }
 
@@ -6237,39 +6126,39 @@ public class GameServer {
         if (var2 <= 10 && var2 > 0) {
             ByteBufferWriter var3 = var1.startPacket();
             PacketTypes.PacketType.SyncObjects.doPacket(var3);
-            var3.putShort((short)2);
+            var3.putShort((short) 2);
             int var4 = var3.bb.position();
-            var3.putShort((short)0);
+            var3.putShort((short) 0);
             int var5 = 0;
 
             int var6;
-            for(var6 = 0; var6 < var2; ++var6) {
+            for (var6 = 0; var6 < var2; ++var6) {
                 int var7 = var0.getInt();
                 int var8 = var0.getInt();
                 long var9 = var0.getLong();
                 IsoChunk var11 = ServerMap.instance.getChunk(var7, var8);
                 if (var11 != null) {
                     ++var5;
-                    var3.putShort((short)var11.wx);
-                    var3.putShort((short)var11.wy);
+                    var3.putShort((short) var11.wx);
+                    var3.putShort((short) var11.wy);
                     var3.putLong(var11.getHashCodeObjects());
                     int var12 = var3.bb.position();
-                    var3.putShort((short)0);
+                    var3.putShort((short) 0);
                     int var13 = 0;
 
                     int var14;
-                    for(var14 = var7 * 10; var14 < var7 * 10 + 10; ++var14) {
-                        for(int var15 = var8 * 10; var15 < var8 * 10 + 10; ++var15) {
-                            for(int var16 = 0; var16 <= 7; ++var16) {
+                    for (var14 = var7 * 10; var14 < var7 * 10 + 10; ++var14) {
+                        for (int var15 = var8 * 10; var15 < var8 * 10 + 10; ++var15) {
+                            for (int var16 = 0; var16 <= 7; ++var16) {
                                 IsoGridSquare var17 = ServerMap.instance.getGridSquare(var14, var15, var16);
                                 if (var17 == null) {
                                     break;
                                 }
 
-                                var3.putByte((byte)(var17.getX() - var11.wx * 10));
-                                var3.putByte((byte)(var17.getY() - var11.wy * 10));
-                                var3.putByte((byte)var17.getZ());
-                                var3.putInt((int)var17.getHashCodeObjects());
+                                var3.putByte((byte) (var17.getX() - var11.wx * 10));
+                                var3.putByte((byte) (var17.getY() - var11.wy * 10));
+                                var3.putByte((byte) var17.getZ());
+                                var3.putInt((int) var17.getHashCodeObjects());
                                 ++var13;
                             }
                         }
@@ -6277,14 +6166,14 @@ public class GameServer {
 
                     var14 = var3.bb.position();
                     var3.bb.position(var12);
-                    var3.putShort((short)var13);
+                    var3.putShort((short) var13);
                     var3.bb.position(var14);
                 }
             }
 
             var6 = var3.bb.position();
             var3.bb.position(var4);
-            var3.putShort((short)var5);
+            var3.putShort((short) var5);
             var3.bb.position(var6);
             PacketTypes.PacketType.SyncObjects.send(var1);
         }
@@ -6293,28 +6182,28 @@ public class GameServer {
     public static void SyncObjectChunkHashes(IsoChunk var0, UdpConnection var1) {
         ByteBufferWriter var2 = var1.startPacket();
         PacketTypes.PacketType.SyncObjects.doPacket(var2);
-        var2.putShort((short)2);
-        var2.putShort((short)1);
-        var2.putShort((short)var0.wx);
-        var2.putShort((short)var0.wy);
+        var2.putShort((short) 2);
+        var2.putShort((short) 1);
+        var2.putShort((short) var0.wx);
+        var2.putShort((short) var0.wy);
         var2.putLong(var0.getHashCodeObjects());
         int var3 = var2.bb.position();
-        var2.putShort((short)0);
+        var2.putShort((short) 0);
         int var4 = 0;
 
         int var5;
-        for(var5 = var0.wx * 10; var5 < var0.wx * 10 + 10; ++var5) {
-            for(int var6 = var0.wy * 10; var6 < var0.wy * 10 + 10; ++var6) {
-                for(int var7 = 0; var7 <= 7; ++var7) {
+        for (var5 = var0.wx * 10; var5 < var0.wx * 10 + 10; ++var5) {
+            for (int var6 = var0.wy * 10; var6 < var0.wy * 10 + 10; ++var6) {
+                for (int var7 = 0; var7 <= 7; ++var7) {
                     IsoGridSquare var8 = ServerMap.instance.getGridSquare(var5, var6, var7);
                     if (var8 == null) {
                         break;
                     }
 
-                    var2.putByte((byte)(var8.getX() - var0.wx * 10));
-                    var2.putByte((byte)(var8.getY() - var0.wy * 10));
-                    var2.putByte((byte)var8.getZ());
-                    var2.putInt((int)var8.getHashCodeObjects());
+                    var2.putByte((byte) (var8.getX() - var0.wx * 10));
+                    var2.putByte((byte) (var8.getY() - var0.wy * 10));
+                    var2.putByte((byte) var8.getZ());
+                    var2.putInt((int) var8.getHashCodeObjects());
                     ++var4;
                 }
             }
@@ -6322,7 +6211,7 @@ public class GameServer {
 
         var5 = var2.bb.position();
         var2.bb.position(var3);
-        var2.putShort((short)var4);
+        var2.putShort((short) var4);
         var2.bb.position(var5);
         PacketTypes.PacketType.SyncObjects.send(var1);
     }
@@ -6332,13 +6221,13 @@ public class GameServer {
         if (var2 <= 100 && var2 > 0) {
             ByteBufferWriter var3 = var1.startPacket();
             PacketTypes.PacketType.SyncObjects.doPacket(var3);
-            var3.putShort((short)4);
+            var3.putShort((short) 4);
             int var4 = var3.bb.position();
-            var3.putShort((short)0);
+            var3.putShort((short) 0);
             int var5 = 0;
 
             int var6;
-            for(var6 = 0; var6 < var2; ++var6) {
+            for (var6 = 0; var6 < var2; ++var6) {
                 int var7 = var0.getInt();
                 int var8 = var0.getInt();
                 byte var9 = var0.get();
@@ -6347,14 +6236,14 @@ public class GameServer {
                     ++var5;
                     var3.putInt(var7);
                     var3.putInt(var8);
-                    var3.putByte((byte)var9);
-                    var3.putByte((byte)var10.getObjects().size());
+                    var3.putByte((byte) var9);
+                    var3.putByte((byte) var10.getObjects().size());
                     var3.putInt(0);
                     int var11 = var3.bb.position();
 
                     int var12;
-                    for(var12 = 0; var12 < var10.getObjects().size(); ++var12) {
-                        var3.putLong(((IsoObject)var10.getObjects().get(var12)).customHashCode());
+                    for (var12 = 0; var12 < var10.getObjects().size(); ++var12) {
+                        var3.putLong(((IsoObject) var10.getObjects().get(var12)).customHashCode());
                     }
 
                     var12 = var3.bb.position();
@@ -6366,7 +6255,7 @@ public class GameServer {
 
             var6 = var3.bb.position();
             var3.bb.position(var4);
-            var3.putShort((short)var5);
+            var3.putShort((short) var5);
             var3.bb.position(var6);
             PacketTypes.PacketType.SyncObjects.send(var1);
         }
@@ -6375,30 +6264,30 @@ public class GameServer {
     public static void SyncObjectsRequest(ByteBuffer var0, UdpConnection var1) {
         short var2 = var0.getShort();
         if (var2 <= 100 && var2 > 0) {
-            for(int var3 = 0; var3 < var2; ++var3) {
+            for (int var3 = 0; var3 < var2; ++var3) {
                 int var4 = var0.getInt();
                 int var5 = var0.getInt();
                 byte var6 = var0.get();
                 long var7 = var0.getLong();
                 IsoGridSquare var9 = ServerMap.instance.getGridSquare(var4, var5, var6);
                 if (var9 != null) {
-                    for(int var10 = 0; var10 < var9.getObjects().size(); ++var10) {
-                        if (((IsoObject)var9.getObjects().get(var10)).customHashCode() == var7) {
+                    for (int var10 = 0; var10 < var9.getObjects().size(); ++var10) {
+                        if (((IsoObject) var9.getObjects().get(var10)).customHashCode() == var7) {
                             ByteBufferWriter var11 = var1.startPacket();
                             PacketTypes.PacketType.SyncObjects.doPacket(var11);
-                            var11.putShort((short)6);
+                            var11.putShort((short) 6);
                             var11.putInt(var4);
                             var11.putInt(var5);
-                            var11.putByte((byte)var6);
+                            var11.putByte((byte) var6);
                             var11.putLong(var7);
-                            var11.putByte((byte)var9.getObjects().size());
+                            var11.putByte((byte) var9.getObjects().size());
 
-                            for(int var12 = 0; var12 < var9.getObjects().size(); ++var12) {
-                                var11.putLong(((IsoObject)var9.getObjects().get(var12)).customHashCode());
+                            for (int var12 = 0; var12 < var9.getObjects().size(); ++var12) {
+                                var11.putLong(((IsoObject) var9.getObjects().get(var12)).customHashCode());
                             }
 
                             try {
-                                ((IsoObject)var9.getObjects().get(var10)).writeToRemoteBuffer(var11);
+                                ((IsoObject) var9.getObjects().get(var10)).writeToRemoteBuffer(var11);
                             } catch (Throwable var13) {
                                 DebugLog.log("ERROR: GameServer.SyncObjectsRequest " + var13.getMessage());
                                 var1.cancelPacket();
@@ -6423,13 +6312,13 @@ public class GameServer {
         int var7 = var0.getInt();
         IsoGridSquare var8 = IsoWorld.instance.CurrentCell.getGridSquare(var3, var4, var5);
         if (var8 != null && var6 >= 0 && var6 < var8.getObjects().size()) {
-            IsoObject var9 = (IsoObject)var8.getObjects().get(var6);
+            IsoObject var9 = (IsoObject) var8.getObjects().get(var6);
             if (var9 instanceof IsoDoor) {
-                IsoDoor var10 = (IsoDoor)var9;
+                IsoDoor var10 = (IsoDoor) var9;
                 var10.keyId = var7;
 
-                for(int var13 = 0; var13 < udpEngine.connections.size(); ++var13) {
-                    UdpConnection var12 = (UdpConnection)udpEngine.connections.get(var13);
+                for (int var13 = 0; var13 < udpEngine.connections.size(); ++var13) {
+                    UdpConnection var12 = (UdpConnection) udpEngine.connections.get(var13);
                     if (var12.getConnectedGUID() != var1.getConnectedGUID()) {
                         ByteBufferWriter var11 = var12.startPacket();
                         PacketTypes.PacketType.SyncDoorKey.doPacket(var11);
@@ -6462,15 +6351,15 @@ public class GameServer {
         int var9 = var0.getInt();
         IsoGridSquare var10 = IsoWorld.instance.CurrentCell.getGridSquare(var3, var4, var5);
         if (var10 != null && var6 >= 0 && var6 < var10.getObjects().size()) {
-            IsoObject var11 = (IsoObject)var10.getObjects().get(var6);
+            IsoObject var11 = (IsoObject) var10.getObjects().get(var6);
             if (var11 instanceof IsoThumpable) {
-                IsoThumpable var12 = (IsoThumpable)var11;
+                IsoThumpable var12 = (IsoThumpable) var11;
                 var12.lockedByCode = var7;
                 var12.lockedByPadlock = var8 == 1;
                 var12.keyId = var9;
 
-                for(int var14 = 0; var14 < udpEngine.connections.size(); ++var14) {
-                    UdpConnection var15 = (UdpConnection)udpEngine.connections.get(var14);
+                for (int var14 = 0; var14 < udpEngine.connections.size(); ++var14) {
+                    UdpConnection var15 = (UdpConnection) udpEngine.connections.get(var14);
                     if (var15.getConnectedGUID() != var1.getConnectedGUID()) {
                         ByteBufferWriter var13 = var15.startPacket();
                         PacketTypes.PacketType.SyncThumpable.doPacket(var13);
@@ -6509,14 +6398,14 @@ public class GameServer {
         IsoGridSquare var7 = IsoWorld.instance.CurrentCell.getGridSquare(var3, var4, var5);
 
         if (var7 != null && var6 >= 0 && var6 < var7.getObjects().size()) {
-            IsoObject var8 = (IsoObject)var7.getObjects().get(var6);
+            IsoObject var8 = (IsoObject) var7.getObjects().get(var6);
             if (!(var8 instanceof IsoWorldInventoryObject)) {
                 IsoRegions.setPreviousFlags(var7);
             }
 
             DebugLog.log(DebugType.Objects, "object: removing " + var8 + " index=" + var6 + " " + var3 + "," + var4 + "," + var5);
             if (var8 instanceof IsoWorldInventoryObject) {
-                LoggerManager.getLogger("item").write(var1.idStr + " \"" + var1.username + "\" floor -1 " + var3 + "," + var4 + "," + var5 + " [" + ((IsoWorldInventoryObject)var8).getItem().getFullType() + "]");
+                LoggerManager.getLogger("item").write(var1.idStr + " \"" + var1.username + "\" floor -1 " + var3 + "," + var4 + "," + var5 + " [" + ((IsoWorldInventoryObject) var8).getItem().getFullType() + "]");
             } else {
                 String var9 = var8.getName() != null ? var8.getName() : var8.getObjectName();
                 if (var8.getSprite() != null && var8.getSprite().getName() != null) {
@@ -6528,8 +6417,8 @@ public class GameServer {
 
             int var12;
             if (var8.isTableSurface()) {
-                for(var12 = var6 + 1; var12 < var7.getObjects().size(); ++var12) {
-                    IsoObject var10 = (IsoObject)var7.getObjects().get(var12);
+                for (var12 = var6 + 1; var12 < var7.getObjects().size(); ++var12) {
+                    IsoObject var10 = (IsoObject) var7.getObjects().get(var12);
                     if (var10.isTableTopObject() || var10.isTableSurface()) {
                         var10.setRenderYOffset(var10.getRenderYOffset() - var8.getSurfaceOffset());
                     }
@@ -6550,7 +6439,7 @@ public class GameServer {
 
             /*- Проходим по списку запрещенных для ломания объектов. И устанавливаем флаг - можно или нельзя ломать*/
             boolean itAllowedDestroy = true;
-            for(int var14 = 0; var14 < var13; ++var14) {
+            for (int var14 = 0; var14 < var13; ++var14) {
                 String object = objectsBlacklist[var14];
                 try {
                     if (var8.getSprite().getName().equals(object)) {
@@ -6577,8 +6466,8 @@ public class GameServer {
                     IsoGenerator.updateGenerator(var7);
                 }
 
-                for(var12 = 0; var12 < udpEngine.connections.size(); ++var12) {
-                    UdpConnection var16 = (UdpConnection)udpEngine.connections.get(var12);
+                for (var12 = 0; var12 < udpEngine.connections.size(); ++var12) {
+                    UdpConnection var16 = (UdpConnection) udpEngine.connections.get(var12);
                     if (var16.getConnectedGUID() != var1.getConnectedGUID()) {
                         ByteBufferWriter var11 = var16.startPacket();
                         PacketTypes.PacketType.RemoveItemFromSquare.doPacket(var11);
@@ -6622,9 +6511,9 @@ public class GameServer {
                 IsoGenerator.updateGenerator(var5);
             }
 
-            for(int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
-                UdpConnection var7 = (UdpConnection)udpEngine.connections.get(var6);
-                if (var7.RelevantTo((float)var1, (float)var2)) {
+            for (int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
+                UdpConnection var7 = (UdpConnection) udpEngine.connections.get(var6);
+                if (var7.RelevantTo((float) var1, (float) var2)) {
                     ByteBufferWriter var8 = var7.startPacket();
                     PacketTypes.PacketType.RemoveItemFromSquare.doPacket(var8);
                     var8.putInt(var1);
@@ -6640,8 +6529,8 @@ public class GameServer {
     }
 
     public static void sendBloodSplatter(HandWeapon var0, float var1, float var2, float var3, Vector2 var4, boolean var5, boolean var6) {
-        for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-            UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+        for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+            UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
             ByteBufferWriter var9 = var8.startPacket();
             PacketTypes.PacketType.BloodSplatter.doPacket(var9);
             var9.putUTF(var0 != null ? var0.getType() : "");
@@ -6650,11 +6539,11 @@ public class GameServer {
             var9.putFloat(var3);
             var9.putFloat(var4.getX());
             var9.putFloat(var4.getY());
-            var9.putByte((byte)(var5 ? 1 : 0));
-            var9.putByte((byte)(var6 ? 1 : 0));
+            var9.putByte((byte) (var5 ? 1 : 0));
+            var9.putByte((byte) (var6 ? 1 : 0));
             byte var10 = 0;
             if (var0 != null) {
-                var10 = (byte)Math.max(var0.getSplatNumber(), 1);
+                var10 = (byte) Math.max(var0.getSplatNumber(), 1);
             }
 
             var9.putByte(var10);
@@ -6678,7 +6567,7 @@ public class GameServer {
                     var10000 = LoggerManager.getLogger("item");
                     var10001 = connection.idStr;
 
-                    var10000.write(var10001 + " \"" + connection.username + "\" floor +1 " + (int)var3.getX() + "," + (int)var3.getY() + "," + (int)var3.getZ() + " [" + ((IsoWorldInventoryObject)var3).getItem().getFullType() + "]");
+                    var10000.write(var10001 + " \"" + connection.username + "\" floor +1 " + (int) var3.getX() + "," + (int) var3.getY() + "," + (int) var3.getZ() + " [" + ((IsoWorldInventoryObject) var3).getItem().getFullType() + "]");
                 } else {
                     String var4 = var3.getName() != null ? var3.getName() : var3.getObjectName();
                     if (var3.getSprite() != null && var3.getSprite().getName() != null) {
@@ -6702,9 +6591,9 @@ public class GameServer {
                     IsoGenerator.updateGenerator(var3.square);
                 }
 
-                for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                    UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var7);
-                    if (var5.getConnectedGUID() != connection.getConnectedGUID() && var5.RelevantTo((float)var3.square.x, (float)var3.square.y)) {
+                for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                    UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var7);
+                    if (var5.getConnectedGUID() != connection.getConnectedGUID() && var5.RelevantTo((float) var3.square.x, (float) var3.square.y)) {
                         ByteBufferWriter var6 = var5.startPacket();
                         PacketTypes.PacketType.AddItemToMap.doPacket(var6);
                         var3.writeToRemoteBuffer(var6);
@@ -6715,7 +6604,7 @@ public class GameServer {
                 if (!(var3 instanceof IsoWorldInventoryObject)) {
                     LuaEventManager.triggerEvent("OnObjectAdded", var3);
                 } else {
-                    ((IsoWorldInventoryObject)var3).dropTime = GameTime.getInstance().getWorldAgeHours();
+                    ((IsoWorldInventoryObject) var3).dropTime = GameTime.getInstance().getWorldAgeHours();
                 }
             } else if (bDebug) {
                 DebugLog.log("AddItemToMap: sq is null");
@@ -6738,7 +6627,7 @@ public class GameServer {
         RequestDataManager.getInstance().disconnect(var0);
 
         int var2;
-        for(var2 = 0; var2 < 4; ++var2) {
+        for (var2 = 0; var2 < 4; ++var2) {
             IsoPlayer var3 = var0.players[var2];
             if (var3 != null) {
                 ChatServer.getInstance().disconnectPlayer(var0.playerIDs[var2]);
@@ -6752,7 +6641,7 @@ public class GameServer {
             var0.connectArea[var2] = null;
         }
 
-        for(var2 = 0; var2 < udpEngine.getMaxConnections(); ++var2) {
+        for (var2 = 0; var2 < udpEngine.getMaxConnections(); ++var2) {
             if (SlotToConnection[var2] == var0) {
                 SlotToConnection[var2] = null;
             }
@@ -6760,9 +6649,9 @@ public class GameServer {
 
         Iterator var5 = IDToAddressMap.entrySet().iterator();
 
-        while(var5.hasNext()) {
-            Entry var6 = (Entry)var5.next();
-            if ((Long)var6.getValue() == var0.getConnectedGUID()) {
+        while (var5.hasNext()) {
+            Entry var6 = (Entry) var5.next();
+            if ((Long) var6.getValue() == var0.getConnectedGUID()) {
                 var5.remove();
             }
         }
@@ -6794,7 +6683,7 @@ public class GameServer {
         if (var3.type == null) {
             try {
                 if (ServerOptions.instance.AntiCheatProtectionType13.getValue() && PacketValidator.checkUser(var2)) {
-                    PacketValidator.doKickUser(var2, String.valueOf(var0), "Type13", (String)null);
+                    PacketValidator.doKickUser(var2, String.valueOf(var0), "Type13", (String) null);
                 }
             } catch (Exception var5) {
                 var5.printStackTrace();
@@ -6821,16 +6710,16 @@ public class GameServer {
     }
 
     public static void smashWindow(IsoWindow var0, int var1) {
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
             if (var3.RelevantTo(var0.getX(), var0.getY())) {
                 ByteBufferWriter var4 = var3.startPacket();
                 PacketTypes.PacketType.SmashWindow.doPacket(var4);
                 var4.putInt(var0.square.getX());
                 var4.putInt(var0.square.getY());
                 var4.putInt(var0.square.getZ());
-                var4.putByte((byte)var0.square.getObjects().indexOf(var0));
-                var4.putByte((byte)var1);
+                var4.putByte((byte) var0.square.getObjects().indexOf(var0));
+                var4.putByte((byte) var1);
                 PacketTypes.PacketType.SmashWindow.send(var3);
             }
         }
@@ -6855,10 +6744,10 @@ public class GameServer {
     }
 
     private static void sendHitCharacter(HitCharacterPacket var0, UdpConnection var1) {
-       /*--- Можно юзать как средство отслеживания ударов и т.п ---*/
+        /*--- Можно юзать как средство отслеживания ударов и т.п ---*/
 
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
             if (var3.getConnectedGUID() != var1.getConnectedGUID() && var0.isRelevant(var3)) {
                 ByteBufferWriter var4 = var3.startPacket();
                 PacketTypes.PacketType.HitCharacter.doPacket(var4);
@@ -6909,8 +6798,8 @@ public class GameServer {
                 DebugLog.Multiplayer.debugln("SendZombieDeath: %s", var0.getDescription());
             }
 
-            for(int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
-                UdpConnection var2 = (UdpConnection)udpEngine.connections.get(var1);
+            for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
+                UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
                 if (var2.RelevantTo(var0.getZombie().getX(), var0.getZombie().getY())) {
                     ByteBufferWriter var3 = var2.startPacket();
                     PacketTypes.PacketType.ZombieDeath.doPacket(var3);
@@ -6970,8 +6859,8 @@ public class GameServer {
             DebugLog.Multiplayer.debugln("SendPlayerDeath: %s", var0.getDescription());
         }
 
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
             if (var1 == null || var1.getConnectedGUID() != var3.getConnectedGUID()) {
                 ByteBufferWriter var4 = var3.startPacket();
                 PacketTypes.PacketType.PlayerDeath.doPacket(var4);
@@ -6995,7 +6884,7 @@ public class GameServer {
                 if ((startHealth - var5.getBodyDamage().getOverallBodyHealth()) != (startHealth - var4)) {
                     //ServerWorldDatabase.instance.banIp(var1.ip, var1.username,"Любишь читерить машины, заднеприводный?", true);
                     //GameServer.kick(var1, "Попался как дешевка на чите!", (String)null);
-                    DebugLog.log("<PVP-Cheat> " + var5.username +  " получил урона: " + var4 + " и должен иметь " + (startHealth - var4) + " хп но имеет " + (startHealth - var5.getBodyDamage().getOverallBodyHealth()));
+                    DebugLog.log("<PVP-Cheat> " + var5.username + " получил урона: " + var4 + " и должен иметь " + (startHealth - var4) + " хп но имеет " + (startHealth - var5.getBodyDamage().getOverallBodyHealth()));
                 }
 
             }
@@ -7006,8 +6895,8 @@ public class GameServer {
     }
 
     public static void sendPlayerDamage(IsoPlayer var0, UdpConnection var1) {
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
             if (var1.getConnectedGUID() != var3.getConnectedGUID()) {
                 ByteBufferWriter var4 = var3.startPacket();
                 PacketTypes.PacketType.PlayerDamage.doPacket(var4);
@@ -7058,8 +6947,8 @@ public class GameServer {
         if (var3.isConsistent()) {
             var3.process();
 
-            for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+            for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
                 if (var5.getConnectedGUID() != var1.getConnectedGUID() && var3.isRelevant(var5)) {
                     ByteBufferWriter var6 = var5.startPacket();
                     PacketTypes.PacketType.RemoveCorpseFromMap.doPacket(var6);
@@ -7076,8 +6965,8 @@ public class GameServer {
         var1.set(var0);
         DebugLog.Death.trace(var1.getDescription());
 
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
             ByteBufferWriter var4 = var3.startPacket();
             PacketTypes.PacketType.RemoveCorpseFromMap.doPacket(var4);
             var1.write(var4);
@@ -7092,8 +6981,8 @@ public class GameServer {
             var3.parse(var0, var1);
             Iterator var4 = udpEngine.connections.iterator();
 
-            while(var4.hasNext()) {
-                UdpConnection var5 = (UdpConnection)var4.next();
+            while (var4.hasNext()) {
+                UdpConnection var5 = (UdpConnection) var4.next();
                 if (var5.getConnectedGUID() != var1.getConnectedGUID() && var3.isRelevant(var5)) {
                     ByteBufferWriter var6 = var5.startPacket();
                     PacketTypes.PacketType.EventPacket.doPacket(var6);
@@ -7122,7 +7011,7 @@ public class GameServer {
             actionsList.add(var3.getDescription() + "*" + System.currentTimeMillis());
 
             if (actionsList.size() > 10) {
-                for(int i = 0; i < udpEngine.connections.size(); ++i) {
+                for (int i = 0; i < udpEngine.connections.size(); ++i) {
                     tempActionList.clear();
                     String playerName = udpEngine.connections.get(var2).username;
                     for (int j = 0; j < actionsList.size(); j++) {
@@ -7132,15 +7021,15 @@ public class GameServer {
                     }
 
                     for (int k = 0; k < tempActionList.size(); k++) {
-                        if (tempActionList.get(k).contains("start") & tempActionList.get(k+1).contains("stop")) {
+                        if (tempActionList.get(k).contains("start") & tempActionList.get(k + 1).contains("stop")) {
                             startActionString = tempActionList.get(k);
-                            stopActionString = tempActionList.get(k+1);
+                            stopActionString = tempActionList.get(k + 1);
 
-                            startTimeAction = Long.parseLong(startActionString.substring(startActionString.indexOf("*")+1));
-                            stopTimeAction = Long.parseLong(stopActionString.substring(stopActionString.indexOf("*")+1));
+                            startTimeAction = Long.parseLong(startActionString.substring(startActionString.indexOf("*") + 1));
+                            stopTimeAction = Long.parseLong(stopActionString.substring(stopActionString.indexOf("*") + 1));
 
 
-                            DebugLog.log("Разница во времени для " + playerName + " :" +  (stopTimeAction - startTimeAction));
+                            DebugLog.log("Разница во времени для " + playerName + " :" + (stopTimeAction - startTimeAction));
                         }
                     }
 
@@ -7149,9 +7038,8 @@ public class GameServer {
             }
 
 
-
-            while(var4.hasNext()) {
-                UdpConnection var5 = (UdpConnection)var4.next();
+            while (var4.hasNext()) {
+                UdpConnection var5 = (UdpConnection) var4.next();
 
                 if (var5.getConnectedGUID() != var1.getConnectedGUID() && var3.isRelevant(var5)) {
                     ByteBufferWriter var6 = var5.startPacket();
@@ -7172,7 +7060,7 @@ public class GameServer {
             short var3 = var0.getShort();
             boolean var4 = var0.get() != 0;
             DebugLog.Death.trace("id=%d, isFallOnFront=%b", var3, var4);
-            IsoZombie var5 = (IsoZombie)ServerMap.instance.ZombieMap.get(var3);
+            IsoZombie var5 = (IsoZombie) ServerMap.instance.ZombieMap.get(var3);
             if (var5 != null) {
                 var5.setFallOnFront(var4);
                 var5.becomeCorpse();
@@ -7192,7 +7080,7 @@ public class GameServer {
             }
 
             short var3 = var0.getShort();
-            IsoZombie var4 = (IsoZombie)ServerMap.instance.ZombieMap.get(var3);
+            IsoZombie var4 = (IsoZombie) ServerMap.instance.ZombieMap.get(var3);
             if (var4 == null) {
                 DebugLog.Multiplayer.error("ReceiveEatBody: zombie " + var3 + " not found");
                 return;
@@ -7200,8 +7088,8 @@ public class GameServer {
 
             Iterator var5 = udpEngine.connections.iterator();
 
-            while(var5.hasNext()) {
-                UdpConnection var6 = (UdpConnection)var5.next();
+            while (var5.hasNext()) {
+                UdpConnection var6 = (UdpConnection) var5.next();
                 if (var6.RelevantTo(var4.x, var4.y)) {
                     if (Core.bDebug) {
                         DebugLog.log(DebugType.Multiplayer, "SendEatBody");
@@ -7226,15 +7114,15 @@ public class GameServer {
             int var4 = var0.getInt();
             int[] var5 = new int[var4];
 
-            for(int var6 = 0; var6 < var4; ++var6) {
+            for (int var6 = 0; var6 < var4; ++var6) {
                 var5[var6] = var0.getInt();
             }
 
-            RakVoice.SetChannelsRouting(var1.getConnectedGUID(), var3, var5, (short)var4);
+            RakVoice.SetChannelsRouting(var1.getConnectedGUID(), var3, var5, (short) var4);
             Iterator var10 = udpEngine.connections.iterator();
 
-            while(var10.hasNext()) {
-                UdpConnection var7 = (UdpConnection)var10.next();
+            while (var10.hasNext()) {
+                UdpConnection var7 = (UdpConnection) var10.next();
                 if (var7 != var1 && var1.players[0] != null) {
                     ByteBufferWriter var8 = var7.startPacket();
                     PacketTypes.PacketType.SyncRadioData.doPacket(var8);
@@ -7257,7 +7145,7 @@ public class GameServer {
             }
 
             short var3 = var0.getShort();
-            IsoZombie var4 = (IsoZombie)ServerMap.instance.ZombieMap.get(var3);
+            IsoZombie var4 = (IsoZombie) ServerMap.instance.ZombieMap.get(var3);
             if (var4 == null) {
                 DebugLog.Multiplayer.error("ReceiveThump: zombie " + var3 + " not found");
                 return;
@@ -7265,8 +7153,8 @@ public class GameServer {
 
             Iterator var5 = udpEngine.connections.iterator();
 
-            while(var5.hasNext()) {
-                UdpConnection var6 = (UdpConnection)var5.next();
+            while (var5.hasNext()) {
+                UdpConnection var6 = (UdpConnection) var5.next();
                 if (var6.RelevantTo(var4.x, var4.y)) {
                     ByteBufferWriter var7 = var6.startPacket();
                     PacketTypes.PacketType.Thump.doPacket(var7);
@@ -7291,10 +7179,10 @@ public class GameServer {
             var2.putInt(var1.z);
             var2.putInt(var1.radius);
             var2.putInt(var1.volume);
-            var2.putByte((byte)(var1.stresshumans ? 1 : 0));
+            var2.putByte((byte) (var1.stresshumans ? 1 : 0));
             var2.putFloat(var1.zombieIgnoreDist);
             var2.putFloat(var1.stressMod);
-            var2.putByte((byte)(var1.sourceIsZombie ? 1 : 0));
+            var2.putByte((byte) (var1.sourceIsZombie ? 1 : 0));
             PacketTypes.PacketType.WorldSound.send(var0);
         } catch (Exception var4) {
             DebugLog.Sound.printException(var4, "SendWorldSound: failed", LogSeverity.Error);
@@ -7304,11 +7192,11 @@ public class GameServer {
     }
 
     public static void sendWorldSound(WorldSoundManager.WorldSound var0, UdpConnection var1) {
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
             if ((var1 == null || var1.getConnectedGUID() != var3.getConnectedGUID()) && var3.isFullyConnected()) {
                 IsoPlayer var4 = getAnyPlayerFromConnection(var3);
-                if (var4 != null && var3.RelevantTo((float)var0.x, (float)var0.y, (float)var0.radius)) {
+                if (var4 != null && var3.RelevantTo((float) var0.x, (float) var0.y, (float) var0.radius)) {
                     sendWorldSound(var3, var0);
                 }
             }
@@ -7327,7 +7215,7 @@ public class GameServer {
         float var10 = var0.getFloat();
         boolean var11 = var0.get() == 1;
         DebugLog.Sound.noise("x=%d y=%d z=%d, radius=%d", var3, var4, var5, var6);
-        WorldSoundManager.WorldSound var12 = WorldSoundManager.instance.addSound((Object)null, var3, var4, var5, var6, var7, var8, var9, var10, var11, false, true);
+        WorldSoundManager.WorldSound var12 = WorldSoundManager.instance.addSound((Object) null, var3, var4, var5, var6, var7, var8, var9, var10, var11, false, true);
         if (var12 != null) {
             sendWorldSound(var12, var1);
         }
@@ -7362,8 +7250,8 @@ public class GameServer {
 
     public static void startRain() {
         if (udpEngine != null) {
-            for(int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
-                UdpConnection var1 = (UdpConnection)udpEngine.connections.get(var0);
+            for (int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
+                UdpConnection var1 = (UdpConnection) udpEngine.connections.get(var0);
                 sendStartRain(var1);
             }
 
@@ -7377,8 +7265,8 @@ public class GameServer {
     }
 
     public static void stopRain() {
-        for(int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
-            UdpConnection var1 = (UdpConnection)udpEngine.connections.get(var0);
+        for (int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
+            UdpConnection var1 = (UdpConnection) udpEngine.connections.get(var0);
             sendStopRain(var1);
         }
 
@@ -7388,9 +7276,9 @@ public class GameServer {
         GameTime var1 = GameTime.getInstance();
         ByteBufferWriter var2 = var0.startPacket();
         PacketTypes.PacketType.Weather.doPacket(var2);
-        var2.putByte((byte)var1.getDawn());
-        var2.putByte((byte)var1.getDusk());
-        var2.putByte((byte)(var1.isThunderDay() ? 1 : 0));
+        var2.putByte((byte) var1.getDawn());
+        var2.putByte((byte) var1.getDusk());
+        var2.putByte((byte) (var1.isThunderDay() ? 1 : 0));
         var2.putFloat(var1.Moon);
         var2.putFloat(var1.getAmbientMin());
         var2.putFloat(var1.getAmbientMax());
@@ -7403,8 +7291,8 @@ public class GameServer {
     }
 
     public static void sendWeather() {
-        for(int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
-            UdpConnection var1 = (UdpConnection)udpEngine.connections.get(var0);
+        for (int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
+            UdpConnection var1 = (UdpConnection) udpEngine.connections.get(var0);
             sendWeather(var1);
         }
 
@@ -7419,8 +7307,8 @@ public class GameServer {
     private static boolean isInSameSafehouse(IsoPlayer var0, IsoPlayer var1) {
         ArrayList var2 = SafeHouse.getSafehouseList();
 
-        for(int var3 = 0; var3 < var2.size(); ++var3) {
-            SafeHouse var4 = (SafeHouse)var2.get(var3);
+        for (int var3 = 0; var3 < var2.size(); ++var3) {
+            SafeHouse var4 = (SafeHouse) var2.get(var3);
             if (var4.playerAllowed(var0.getUsername()) && var4.playerAllowed(var1.getUsername())) {
                 return true;
             }
@@ -7430,7 +7318,7 @@ public class GameServer {
     }
 
     private static boolean isAnyPlayerInSameFaction(UdpConnection var0, IsoPlayer var1) {
-        for(int var2 = 0; var2 < 4; ++var2) {
+        for (int var2 = 0; var2 < 4; ++var2) {
             IsoPlayer var3 = var0.players[var2];
             if (var3 != null && isInSameFaction(var3, var1)) {
                 return true;
@@ -7441,7 +7329,7 @@ public class GameServer {
     }
 
     private static boolean isAnyPlayerInSameSafehouse(UdpConnection var0, IsoPlayer var1) {
-        for(int var2 = 0; var2 < 4; ++var2) {
+        for (int var2 = 0; var2 < 4; ++var2) {
             IsoPlayer var3 = var0.players[var2];
             if (var3 != null && isInSameSafehouse(var3, var1)) {
                 return true;
@@ -7476,8 +7364,8 @@ public class GameServer {
     private static void sendWorldMapPlayerPosition(UdpConnection var0) {
         tempPlayers.clear();
 
-        for(int var1 = 0; var1 < Players.size(); ++var1) {
-            IsoPlayer var2 = (IsoPlayer)Players.get(var1);
+        for (int var1 = 0; var1 < Players.size(); ++var1) {
+            IsoPlayer var2 = (IsoPlayer) Players.get(var1);
             if (shouldSendWorldMapPlayerPosition(var0, var2)) {
                 tempPlayers.add(var2);
             }
@@ -7487,10 +7375,10 @@ public class GameServer {
             ByteBufferWriter var5 = var0.startPacket();
             PacketTypes.PacketType.WorldMapPlayerPosition.doPacket(var5);
             var5.putBoolean(false);
-            var5.putShort((short)tempPlayers.size());
+            var5.putShort((short) tempPlayers.size());
 
-            for(int var6 = 0; var6 < tempPlayers.size(); ++var6) {
-                IsoPlayer var3 = (IsoPlayer)tempPlayers.get(var6);
+            for (int var6 = 0; var6 < tempPlayers.size(); ++var6) {
+                IsoPlayer var3 = (IsoPlayer) tempPlayers.get(var6);
                 WorldMapRemotePlayer var4 = WorldMapRemotePlayers.instance.getOrCreatePlayer(var3);
                 var4.setPlayer(var3);
                 var5.putShort(var4.getOnlineID());
@@ -7506,8 +7394,8 @@ public class GameServer {
     public static void sendWorldMapPlayerPosition() {
         int var0 = ServerOptions.getInstance().MapRemotePlayerVisibility.getValue();
 
-        for(int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
-            UdpConnection var2 = (UdpConnection)udpEngine.connections.get(var1);
+        for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
+            UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
             if (var0 != 1 || var2.accessLevel != 1) {
                 sendWorldMapPlayerPosition(var2);
             }
@@ -7520,9 +7408,9 @@ public class GameServer {
         tempPlayers.clear();
 
         IsoPlayer var6;
-        for(int var4 = 0; var4 < var3; ++var4) {
+        for (int var4 = 0; var4 < var3; ++var4) {
             short var5 = var0.getShort();
-            var6 = (IsoPlayer)IDToPlayerMap.get(var5);
+            var6 = (IsoPlayer) IDToPlayerMap.get(var5);
             if (var6 != null && shouldSendWorldMapPlayerPosition(var1, var6)) {
                 tempPlayers.add(var6);
             }
@@ -7532,10 +7420,10 @@ public class GameServer {
             ByteBufferWriter var8 = var1.startPacket();
             PacketTypes.PacketType.WorldMapPlayerPosition.doPacket(var8);
             var8.putBoolean(true);
-            var8.putShort((short)tempPlayers.size());
+            var8.putShort((short) tempPlayers.size());
 
-            for(int var9 = 0; var9 < tempPlayers.size(); ++var9) {
-                var6 = (IsoPlayer)tempPlayers.get(var9);
+            for (int var9 = 0; var9 < tempPlayers.size(); ++var9) {
+                var6 = (IsoPlayer) tempPlayers.get(var9);
                 WorldMapRemotePlayer var7 = WorldMapRemotePlayers.instance.getOrCreatePlayer(var6);
                 var7.setPlayer(var6);
                 var8.putShort(var7.getOnlineID());
@@ -7559,7 +7447,7 @@ public class GameServer {
 
         IsoPlayer[] players = var0.players;
 
-        for (IsoPlayer playerObject: players) {
+        for (IsoPlayer playerObject : players) {
             playerObject.setGodMod(false);
             playerObject.setBuildCheat(false);
             playerObject.setHealthCheat(false);
@@ -7576,7 +7464,6 @@ public class GameServer {
         }
 
 
-
         GameTime var1 = GameTime.getInstance();
         ByteBufferWriter var2 = var0.startPacket();
         PacketTypes.PacketType.SyncClock.doPacket(var2);
@@ -7587,8 +7474,8 @@ public class GameServer {
     }
 
     public static void syncClock() {
-        for(int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
-            UdpConnection var1 = (UdpConnection)udpEngine.connections.get(var0);
+        for (int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
+            UdpConnection var1 = (UdpConnection) udpEngine.connections.get(var0);
             syncClock(var1);
         }
 
@@ -7600,12 +7487,12 @@ public class GameServer {
         var4.putUTF(var0);
         var4.putUTF(var1);
         if (var2 != null && !var2.isEmpty()) {
-            var4.putByte((byte)1);
+            var4.putByte((byte) 1);
 
             try {
                 KahluaTableIterator var5 = var2.iterator();
 
-                while(var5.advance()) {
+                while (var5.advance()) {
                     if (!TableNetworkUtils.canSave(var5.getKey(), var5.getValue())) {
                         Object var10000 = var5.getKey();
                         DebugLog.log("ERROR: sendServerCommand: can't save key,value=" + var10000 + "," + var5.getValue());
@@ -7617,15 +7504,15 @@ public class GameServer {
                 var6.printStackTrace();
             }
         } else {
-            var4.putByte((byte)0);
+            var4.putByte((byte) 0);
         }
 
         PacketTypes.PacketType.ClientCommand.send(var3);
     }
 
     public static void sendServerCommand(String var0, String var1, KahluaTable var2) {
-        for(int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
-            UdpConnection var4 = (UdpConnection)udpEngine.connections.get(var3);
+        for (int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
+            UdpConnection var4 = (UdpConnection) udpEngine.connections.get(var3);
             sendServerCommand(var0, var1, var2, var4);
         }
 
@@ -7633,20 +7520,20 @@ public class GameServer {
 
     public static void sendServerCommandV(String var0, String var1, Object... var2) {
         if (var2.length == 0) {
-            sendServerCommand(var0, var1, (KahluaTable)null);
+            sendServerCommand(var0, var1, (KahluaTable) null);
         } else if (var2.length % 2 != 0) {
             DebugLog.log("ERROR: sendServerCommand called with invalid number of arguments (" + var0 + " " + var1 + ")");
         } else {
             KahluaTable var3 = LuaManager.platform.newTable();
 
-            for(int var4 = 0; var4 < var2.length; var4 += 2) {
+            for (int var4 = 0; var4 < var2.length; var4 += 2) {
                 Object var5 = var2[var4 + 1];
                 if (var5 instanceof Float) {
-                    var3.rawset(var2[var4], ((Float)var5).doubleValue());
+                    var3.rawset(var2[var4], ((Float) var5).doubleValue());
                 } else if (var5 instanceof Integer) {
-                    var3.rawset(var2[var4], ((Integer)var5).doubleValue());
+                    var3.rawset(var2[var4], ((Integer) var5).doubleValue());
                 } else if (var5 instanceof Short) {
-                    var3.rawset(var2[var4], ((Short)var5).doubleValue());
+                    var3.rawset(var2[var4], ((Short) var5).doubleValue());
                 } else {
                     var3.rawset(var2[var4], var5);
                 }
@@ -7658,7 +7545,7 @@ public class GameServer {
 
     public static void sendServerCommand(IsoPlayer var0, String var1, String var2, KahluaTable var3) {
         if (PlayerToAddressMap.containsKey(var0)) {
-            long var4 = (Long)PlayerToAddressMap.get(var0);
+            long var4 = (Long) PlayerToAddressMap.get(var0);
             UdpConnection var6 = udpEngine.getActiveConnection(var4);
             if (var6 != null) {
                 sendServerCommand(var1, var2, var3, var6);
@@ -7669,10 +7556,10 @@ public class GameServer {
     public static ArrayList getPlayers(ArrayList var0) {
         var0.clear();
 
-        for(int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
-            UdpConnection var2 = (UdpConnection)udpEngine.connections.get(var1);
+        for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
+            UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
 
-            for(int var3 = 0; var3 < 4; ++var3) {
+            for (int var3 = 0; var3 < 4; ++var3) {
                 IsoPlayer var4 = var2.players[var3];
                 if (var4 != null && var4.OnlineID != -1) {
                     var0.add(var4);
@@ -7691,10 +7578,10 @@ public class GameServer {
     public static int getPlayerCount() {
         int var0 = 0;
 
-        for(int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
-            UdpConnection var2 = (UdpConnection)udpEngine.connections.get(var1);
+        for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
+            UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
 
-            for(int var3 = 0; var3 < 4; ++var3) {
+            for (int var3 = 0; var3 < 4; ++var3) {
                 if (var2.playerIDs[var3] != -1) {
                     ++var0;
                 }
@@ -7707,8 +7594,8 @@ public class GameServer {
     public static void sendAmbient(String var0, int var1, int var2, int var3, float var4) {
         DebugLog.log(DebugType.Sound, "ambient: sending " + var0 + " at " + var1 + "," + var2 + " radius=" + var3);
 
-        for(int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
-            UdpConnection var6 = (UdpConnection)udpEngine.connections.get(var5);
+        for (int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
+            UdpConnection var6 = (UdpConnection) udpEngine.connections.get(var5);
             IsoPlayer var7 = getAnyPlayerFromConnection(var6);
             if (var7 != null) {
                 ByteBufferWriter var8 = var6.startPacket();
@@ -7739,11 +7626,11 @@ public class GameServer {
     public static void sendChangeSafety(Safety var0) {
         try {
             SafetyPacket var1 = new SafetyPacket(var0);
-            var1.log((UdpConnection)null, "SendChangeSafety");
+            var1.log((UdpConnection) null, "SendChangeSafety");
             Iterator var2 = udpEngine.connections.iterator();
 
-            while(var2.hasNext()) {
-                UdpConnection var3 = (UdpConnection)var2.next();
+            while (var2.hasNext()) {
+                UdpConnection var3 = (UdpConnection) var2.next();
                 ByteBufferWriter var4 = var3.startPacket();
                 PacketTypes.PacketType.ChangeSafety.doPacket(var4);
                 var1.write(var4);
@@ -7762,9 +7649,9 @@ public class GameServer {
 
     public static void updateOverlayForClients(IsoObject var0, String var1, float var2, float var3, float var4, float var5, UdpConnection var6) {
         if (udpEngine != null) {
-            for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
-                if (var8 != null && var0.square != null && var8.RelevantTo((float)var0.square.x, (float)var0.square.y) && (var6 == null || var8.getConnectedGUID() != var6.getConnectedGUID())) {
+            for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
+                if (var8 != null && var0.square != null && var8.RelevantTo((float) var0.square.x, (float) var0.square.y) && (var6 == null || var8.getConnectedGUID() != var6.getConnectedGUID())) {
                     ByteBufferWriter var9 = var8.startPacket();
                     PacketTypes.PacketType.UpdateOverlaySprite.doPacket(var9);
                     GameWindow.WriteStringUTF(var9.bb, var1);
@@ -7796,7 +7683,7 @@ public class GameServer {
         IsoGridSquare var12 = IsoWorld.instance.CurrentCell.getGridSquare(var4, var5, var6);
         if (var12 != null && var11 < var12.getObjects().size()) {
             try {
-                IsoObject var13 = (IsoObject)var12.getObjects().get(var11);
+                IsoObject var13 = (IsoObject) var12.getObjects().get(var11);
                 if (var13 != null && var13.setOverlaySprite(var3, var7, var8, var9, var10, false)) {
                     updateOverlayForClients(var13, var3, var7, var8, var9, var10, var1);
                 }
@@ -7836,7 +7723,7 @@ public class GameServer {
 
     public static void receiveKickOutOfSafehouse(ByteBuffer var0, UdpConnection var1, short var2) {
         try {
-            IsoPlayer var3 = (IsoPlayer)IDToPlayerMap.get(var0.getShort());
+            IsoPlayer var3 = (IsoPlayer) IDToPlayerMap.get(var0.getShort());
             if (var3 == null) {
                 return;
             }
@@ -7866,9 +7753,9 @@ public class GameServer {
 
             ByteBufferWriter var7 = var6.startPacket();
             PacketTypes.PacketType.KickOutOfSafehouse.doPacket(var7);
-            var7.putByte((byte)var3.PlayerIndex);
-            var7.putFloat((float)(var5.getX() - 1));
-            var7.putFloat((float)(var5.getY() - 1));
+            var7.putByte((byte) var3.PlayerIndex);
+            var7.putFloat((float) (var5.getX() - 1));
+            var7.putFloat((float) (var5.getY() - 1));
             var7.putFloat(0.0F);
             PacketTypes.PacketType.KickOutOfSafehouse.send(var6);
             if (var3.getNetworkCharacterAI() != null) {
@@ -7878,7 +7765,7 @@ public class GameServer {
             if (var3.isAsleep()) {
                 var3.setAsleep(false);
                 var3.setAsleepTime(0.0F);
-                sendWakeUpPlayer(var3, (UdpConnection)null);
+                sendWakeUpPlayer(var3, (UdpConnection) null);
             }
         } catch (Exception var8) {
             DebugLog.Multiplayer.printException(var8, "ReceiveKickOutOfSafehouse: failed", LogSeverity.Error);
@@ -7887,8 +7774,8 @@ public class GameServer {
     }
 
     public static void sendSafehouse(SyncSafehousePacket var0, UdpConnection var1) {
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
             if (var1 == null || var3.getConnectedGUID() != var1.getConnectedGUID()) {
                 ByteBufferWriter var4 = var3.startPacket();
                 PacketTypes.PacketType.SyncSafehouse.doPacket(var4);
@@ -7915,12 +7802,12 @@ public class GameServer {
             int var7 = var0.getInt();
             IsoGridSquare var8 = IsoWorld.instance.CurrentCell.getGridSquare(var4, var5, var6);
             if (var8 != null && var7 >= 0 && var7 < var8.getObjects().size()) {
-                IsoObject var9 = (IsoObject)var8.getObjects().get(var7);
+                IsoObject var9 = (IsoObject) var8.getObjects().get(var7);
                 if (var9 instanceof IsoWaveSignal) {
-                    DeviceData var10 = ((IsoWaveSignal)var9).getDeviceData();
+                    DeviceData var10 = ((IsoWaveSignal) var9).getDeviceData();
                     if (var10 != null) {
                         try {
-                            var10.receiveDeviceDataStatePacket(var0, (UdpConnection)null);
+                            var10.receiveDeviceDataStatePacket(var0, (UdpConnection) null);
                         } catch (Exception var14) {
                             System.out.print(var14.getMessage());
                         }
@@ -7934,11 +7821,11 @@ public class GameServer {
             if (var17 != null) {
                 Radio var21 = null;
                 if (var19 == 1 && var17.getPrimaryHandItem() instanceof Radio) {
-                    var21 = (Radio)var17.getPrimaryHandItem();
+                    var21 = (Radio) var17.getPrimaryHandItem();
                 }
 
                 if (var19 == 2 && var17.getSecondaryHandItem() instanceof Radio) {
-                    var21 = (Radio)var17.getSecondaryHandItem();
+                    var21 = (Radio) var17.getSecondaryHandItem();
                 }
 
                 if (var21 != null && var21.getDeviceData() != null) {
@@ -7959,7 +7846,7 @@ public class GameServer {
                     DeviceData var22 = var23.getDeviceData();
                     if (var22 != null) {
                         try {
-                            var22.receiveDeviceDataStatePacket(var0, (UdpConnection)null);
+                            var22.receiveDeviceDataStatePacket(var0, (UdpConnection) null);
                         } catch (Exception var12) {
                             System.out.print(var12.getMessage());
                         }
@@ -7974,8 +7861,8 @@ public class GameServer {
         WaveSignal var13 = new WaveSignal();
         var13.set(var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12);
 
-        for(int var14 = 0; var14 < udpEngine.connections.size(); ++var14) {
-            UdpConnection var15 = (UdpConnection)udpEngine.connections.get(var14);
+        for (int var14 = 0; var14 < udpEngine.connections.size(); ++var14) {
+            UdpConnection var15 = (UdpConnection) udpEngine.connections.get(var14);
             if (var0 != var15.getConnectedGUID()) {
                 ByteBufferWriter var16 = var15.startPacket();
                 PacketTypes.PacketType.WaveSignal.doPacket(var16);
@@ -8002,8 +7889,8 @@ public class GameServer {
     public static void sendAlarm(int var0, int var1) {
         DebugLog.log(DebugType.Multiplayer, "SendAlarm at [ " + var0 + " , " + var1 + " ]");
 
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
             IsoPlayer var4 = getAnyPlayerFromConnection(var3);
             if (var4 != null) {
                 ByteBufferWriter var5 = var3.startPacket();
@@ -8038,15 +7925,15 @@ public class GameServer {
         float var10 = var0.getFloat();
         IsoGridSquare var11 = IsoWorld.instance.CurrentCell.getGridSquare(var3, var4, var5);
         if (var11 != null && var6 < var11.getObjects().size()) {
-            IsoObject var12 = (IsoObject)var11.getObjects().get(var6);
+            IsoObject var12 = (IsoObject) var11.getObjects().get(var6);
             if (var12 != null) {
                 var12.setCustomColor(var7, var8, var9, var10);
             }
         }
 
-        for(int var15 = 0; var15 < udpEngine.connections.size(); ++var15) {
-            UdpConnection var13 = (UdpConnection)udpEngine.connections.get(var15);
-            if (var13.RelevantTo((float)var3, (float)var4) && (var1 != null && var13.getConnectedGUID() != var1.getConnectedGUID() || var1 == null)) {
+        for (int var15 = 0; var15 < udpEngine.connections.size(); ++var15) {
+            UdpConnection var13 = (UdpConnection) udpEngine.connections.get(var15);
+            if (var13.RelevantTo((float) var3, (float) var4) && (var1 != null && var13.getConnectedGUID() != var1.getConnectedGUID() || var1 == null)) {
                 ByteBufferWriter var14 = var13.startPacket();
                 PacketTypes.PacketType.SendCustomColor.doPacket(var14);
                 var14.putInt(var3);
@@ -8073,9 +7960,9 @@ public class GameServer {
         } else {
             BSFurnace var7 = null;
 
-            for(int var8 = 0; var8 < var6.getObjects().size(); ++var8) {
+            for (int var8 = 0; var8 < var6.getObjects().size(); ++var8) {
                 if (var6.getObjects().get(var8) instanceof BSFurnace) {
-                    var7 = (BSFurnace)var6.getObjects().get(var8);
+                    var7 = (BSFurnace) var6.getObjects().get(var8);
                     break;
                 }
             }
@@ -8103,15 +7990,15 @@ public class GameServer {
     }
 
     public static void sendFuranceChange(BSFurnace var0, UdpConnection var1) {
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
-            if (var3.RelevantTo((float)var0.square.x, (float)var0.square.y) && (var1 != null && var3.getConnectedGUID() != var1.getConnectedGUID() || var1 == null)) {
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
+            if (var3.RelevantTo((float) var0.square.x, (float) var0.square.y) && (var1 != null && var3.getConnectedGUID() != var1.getConnectedGUID() || var1 == null)) {
                 ByteBufferWriter var4 = var3.startPacket();
                 PacketTypes.PacketType.SyncFurnace.doPacket(var4);
                 var4.putInt(var0.square.x);
                 var4.putInt(var0.square.y);
                 var4.putInt(var0.square.z);
-                var4.putByte((byte)(var0.isFireStarted() ? 1 : 0));
+                var4.putByte((byte) (var0.isFireStarted() ? 1 : 0));
                 var4.putFloat(var0.getFuelAmount());
                 var4.putFloat(var0.getFuelDecrease());
                 var4.putFloat(var0.getHeat());
@@ -8127,16 +8014,16 @@ public class GameServer {
         String var3 = GameWindow.ReadString(var0);
         ArrayList var4 = ServerWorldDatabase.instance.getUserlog(var3);
 
-        for(int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
-            UdpConnection var6 = (UdpConnection)udpEngine.connections.get(var5);
+        for (int var5 = 0; var5 < udpEngine.connections.size(); ++var5) {
+            UdpConnection var6 = (UdpConnection) udpEngine.connections.get(var5);
             if (var6.getConnectedGUID() == var1.getConnectedGUID()) {
                 ByteBufferWriter var7 = var6.startPacket();
                 PacketTypes.PacketType.Userlog.doPacket(var7);
                 var7.putInt(var4.size());
                 var7.putUTF(var3);
 
-                for(int var8 = 0; var8 < var4.size(); ++var8) {
-                    Userlog var9 = (Userlog)var4.get(var8);
+                for (int var8 = 0; var8 < var4.size(); ++var8) {
+                    Userlog var9 = (Userlog) var4.get(var8);
                     var7.putInt(Userlog.UserlogType.FromString(var9.getType()).index());
                     var7.putUTF(var9.getText());
                     var7.putUTF(var9.getIssuedBy());
@@ -8173,8 +8060,8 @@ public class GameServer {
         ServerWorldDatabase.instance.addWarningPoint(var3, var4, var5, var1.username);
         LoggerManager.getLogger("admin").write(var1.username + " added " + var5 + " warning point(s) on " + var3 + ", reason:" + var4);
 
-        for(int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
-            UdpConnection var7 = (UdpConnection)udpEngine.connections.get(var6);
+        for (int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
+            UdpConnection var7 = (UdpConnection) udpEngine.connections.get(var6);
             if (var7.username.equals(var3)) {
                 ByteBufferWriter var8 = var7.startPacket();
                 PacketTypes.PacketType.WorldMessage.doPacket(var8);
@@ -8187,8 +8074,8 @@ public class GameServer {
     }
 
     public static void sendAdminMessage(String var0, int var1, int var2, int var3) {
-        for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-            UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+        for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+            UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
             if (canSeePlayerStats(var5)) {
                 ByteBufferWriter var6 = var5.startPacket();
                 PacketTypes.PacketType.MessageForAdmin.doPacket(var6);
@@ -8213,8 +8100,8 @@ public class GameServer {
     }
 
     public static void sendWakeUpPlayer(IsoPlayer var0, UdpConnection var1) {
-        for(int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
-            UdpConnection var3 = (UdpConnection)udpEngine.connections.get(var2);
+        for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
+            UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
             if (var1 == null || var3.getConnectedGUID() != var1.getConnectedGUID()) {
                 ByteBufferWriter var4 = var3.startPacket();
                 PacketTypes.PacketType.WakeUpPlayer.doPacket(var4);
@@ -8228,8 +8115,8 @@ public class GameServer {
     static void receiveGetDBSchema(ByteBuffer var0, UdpConnection var1, short var2) {
         DBSchema var3 = ServerWorldDatabase.instance.getDBSchema();
 
-        for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-            UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+        for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+            UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
             if (var1 != null && var5.getConnectedGUID() == var1.getConnectedGUID()) {
                 ByteBufferWriter var6 = var5.startPacket();
                 PacketTypes.PacketType.GetDBSchema.doPacket(var6);
@@ -8237,17 +8124,17 @@ public class GameServer {
                 var6.putInt(var7.size());
                 Iterator var8 = var7.keySet().iterator();
 
-                while(var8.hasNext()) {
-                    String var9 = (String)var8.next();
-                    HashMap var10 = (HashMap)var7.get(var9);
+                while (var8.hasNext()) {
+                    String var9 = (String) var8.next();
+                    HashMap var10 = (HashMap) var7.get(var9);
                     var6.putUTF(var9);
                     var6.putInt(var10.size());
                     Iterator var11 = var10.keySet().iterator();
 
-                    while(var11.hasNext()) {
-                        String var12 = (String)var11.next();
+                    while (var11.hasNext()) {
+                        String var12 = (String) var11.next();
                         var6.putUTF(var12);
-                        var6.putUTF((String)var10.get(var12));
+                        var6.putUTF((String) var10.get(var12));
                     }
                 }
 
@@ -8262,8 +8149,8 @@ public class GameServer {
         String var4 = GameWindow.ReadString(var0);
         ArrayList var5 = ServerWorldDatabase.instance.getTableResult(var4);
 
-        for(int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
-            UdpConnection var7 = (UdpConnection)udpEngine.connections.get(var6);
+        for (int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
+            UdpConnection var7 = (UdpConnection) udpEngine.connections.get(var6);
             if (var1 != null && var7.getConnectedGUID() == var1.getConnectedGUID()) {
                 doTableResult(var7, var4, var5, 0, var3);
             }
@@ -8286,11 +8173,11 @@ public class GameServer {
             var7.putInt(var4);
         }
 
-        for(int var8 = var3; var8 < var2.size(); ++var8) {
+        for (int var8 = var3; var8 < var2.size(); ++var8) {
             DBResult var9 = null;
 
             try {
-                var9 = (DBResult)var2.get(var8);
+                var9 = (DBResult) var2.get(var8);
                 var7.putInt(var9.getColumns().size());
             } catch (Exception var12) {
                 var12.printStackTrace();
@@ -8298,10 +8185,10 @@ public class GameServer {
 
             Iterator var10 = var9.getColumns().iterator();
 
-            while(var10.hasNext()) {
-                String var11 = (String)var10.next();
+            while (var10.hasNext()) {
+                String var11 = (String) var10.next();
                 var7.putUTF(var11);
-                var7.putUTF((String)var9.getValues().get(var11));
+                var7.putUTF((String) var9.getValues().get(var11));
             }
 
             ++var5;
@@ -8324,7 +8211,7 @@ public class GameServer {
             try {
                 String var3 = GameWindow.ReadString(var0);
                 KahluaTable var4 = LuaManager.platform.newTable();
-                var4.load((ByteBuffer)var0, 195);
+                var4.load((ByteBuffer) var0, 195);
                 ServerWorldDatabase.instance.executeQuery(var3, var4);
             } catch (Throwable var5) {
                 var5.printStackTrace();
@@ -8339,10 +8226,10 @@ public class GameServer {
         String var5 = GameWindow.ReadString(var0);
         IsoPlayer var6 = getPlayerByUserName(var5);
         if (var6 != null) {
-            Long var7 = (Long)IDToAddressMap.get(var6.getOnlineID());
+            Long var7 = (Long) IDToAddressMap.get(var6.getOnlineID());
 
-            for(int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
-                UdpConnection var9 = (UdpConnection)udpEngine.connections.get(var8);
+            for (int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
+                UdpConnection var9 = (UdpConnection) udpEngine.connections.get(var8);
                 if (var9.getConnectedGUID() == var7) {
                     ByteBufferWriter var10 = var9.startPacket();
                     PacketTypes.PacketType.SendFactionInvite.doPacket(var10);
@@ -8360,10 +8247,10 @@ public class GameServer {
         String var3 = GameWindow.ReadString(var0);
         String var4 = GameWindow.ReadString(var0);
         IsoPlayer var5 = getPlayerByUserName(var4);
-        Long var6 = (Long)IDToAddressMap.get(var5.getOnlineID());
+        Long var6 = (Long) IDToAddressMap.get(var5.getOnlineID());
 
-        for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-            UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+        for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+            UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
             if (var8.getConnectedGUID() == var6) {
                 Faction var9 = Faction.getPlayerFaction(var8.username);
                 if (var9 != null && var9.getName().equals(var3)) {
@@ -8390,25 +8277,25 @@ public class GameServer {
     private static void sendTickets(String var0, UdpConnection var1) throws SQLException {
         ArrayList var2 = ServerWorldDatabase.instance.getTickets(var0);
 
-        for(int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
-            UdpConnection var4 = (UdpConnection)udpEngine.connections.get(var3);
+        for (int var3 = 0; var3 < udpEngine.connections.size(); ++var3) {
+            UdpConnection var4 = (UdpConnection) udpEngine.connections.get(var3);
             if (var4.getConnectedGUID() == var1.getConnectedGUID()) {
                 ByteBufferWriter var5 = var4.startPacket();
                 PacketTypes.PacketType.ViewTickets.doPacket(var5);
                 var5.putInt(var2.size());
 
-                for(int var6 = 0; var6 < var2.size(); ++var6) {
-                    DBTicket var7 = (DBTicket)var2.get(var6);
+                for (int var6 = 0; var6 < var2.size(); ++var6) {
+                    DBTicket var7 = (DBTicket) var2.get(var6);
                     var5.putUTF(var7.getAuthor());
                     var5.putUTF(var7.getMessage());
                     var5.putInt(var7.getTicketID());
                     if (var7.getAnswer() != null) {
-                        var5.putByte((byte)1);
+                        var5.putByte((byte) 1);
                         var5.putUTF(var7.getAnswer().getAuthor());
                         var5.putUTF(var7.getAnswer().getMessage());
                         var5.putInt(var7.getAnswer().getTicketID());
                     } else {
-                        var5.putByte((byte)0);
+                        var5.putByte((byte) 0);
                     }
                 }
 
@@ -8434,17 +8321,17 @@ public class GameServer {
     static void receiveRemoveTicket(ByteBuffer var0, UdpConnection var1, short var2) throws SQLException {
         int var3 = var0.getInt();
         ServerWorldDatabase.instance.removeTicket(var3);
-        sendTickets((String)null, var1);
+        sendTickets((String) null, var1);
     }
 
     public static boolean sendItemListNet(UdpConnection var0, IsoPlayer var1, ArrayList var2, IsoPlayer var3, String var4, String var5) {
-        for(int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
-            UdpConnection var7 = (UdpConnection)udpEngine.connections.get(var6);
+        for (int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
+            UdpConnection var7 = (UdpConnection) udpEngine.connections.get(var6);
             if (var0 == null || var7 != var0) {
                 if (var3 != null) {
                     boolean var8 = false;
 
-                    for(int var9 = 0; var9 < var7.players.length; ++var9) {
+                    for (int var9 = 0; var9 < var7.players.length; ++var9) {
                         IsoPlayer var10 = var7.players[var9];
                         if (var10 != null && var10 == var3) {
                             var8 = true;
@@ -8459,24 +8346,24 @@ public class GameServer {
 
                 ByteBufferWriter var12 = var7.startPacket();
                 PacketTypes.PacketType.SendItemListNet.doPacket(var12);
-                var12.putByte((byte)(var3 != null ? 1 : 0));
+                var12.putByte((byte) (var3 != null ? 1 : 0));
                 if (var3 != null) {
                     var12.putShort(var3.getOnlineID());
                 }
 
-                var12.putByte((byte)(var1 != null ? 1 : 0));
+                var12.putByte((byte) (var1 != null ? 1 : 0));
                 if (var1 != null) {
                     var12.putShort(var1.getOnlineID());
                 }
 
                 GameWindow.WriteString(var12.bb, var4);
-                var12.putByte((byte)(var5 != null ? 1 : 0));
+                var12.putByte((byte) (var5 != null ? 1 : 0));
                 if (var5 != null) {
                     GameWindow.WriteString(var12.bb, var5);
                 }
 
                 try {
-                    CompressIdenticalItems.save(var12.bb, var2, (IsoGameCharacter)null);
+                    CompressIdenticalItems.save(var12.bb, var2, (IsoGameCharacter) null);
                 } catch (Exception var11) {
                     var11.printStackTrace();
                     var7.cancelPacket();
@@ -8493,12 +8380,12 @@ public class GameServer {
     static void receiveSendItemListNet(ByteBuffer var0, UdpConnection var1, short var2) {
         IsoPlayer var3 = null;
         if (var0.get() == 1) {
-            var3 = (IsoPlayer)IDToPlayerMap.get(var0.getShort());
+            var3 = (IsoPlayer) IDToPlayerMap.get(var0.getShort());
         }
 
         IsoPlayer var4 = null;
         if (var0.get() == 1) {
-            var4 = (IsoPlayer)IDToPlayerMap.get(var0.getShort());
+            var4 = (IsoPlayer) IDToPlayerMap.get(var0.getShort());
         }
 
         String var5 = GameWindow.ReadString(var0);
@@ -8510,7 +8397,7 @@ public class GameServer {
         ArrayList var7 = new ArrayList();
 
         try {
-            CompressIdenticalItems.load(var0, 195, var7, (ArrayList)null);
+            CompressIdenticalItems.load(var0, 195, var7, (ArrayList) null);
         } catch (Exception var9) {
             var9.printStackTrace();
         }
@@ -8563,16 +8450,22 @@ public class GameServer {
                 FileInputStream var1 = new FileInputStream(var0);
 
                 String var8;
-                label93: {
-                    label92: {
+                label93:
+                {
+                    label92:
+                    {
                         String var14;
-                        label112: {
+                        label112:
+                        {
                             try {
                                 DataInputStream var2 = new DataInputStream(var1);
 
-                                label87: {
-                                    label86: {
-                                        label85: {
+                                label87:
+                                {
+                                    label86:
+                                    {
+                                        label85:
+                                        {
                                             try {
                                                 byte var3 = var2.readByte();
                                                 byte var4 = var2.readByte();
@@ -8676,16 +8569,16 @@ public class GameServer {
     }
 
     public static void transmitBrokenGlass(IsoGridSquare var0) {
-        for(int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
-            UdpConnection var2 = (UdpConnection)udpEngine.connections.get(var1);
+        for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
+            UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
 
             try {
-                if (var2.RelevantTo((float)var0.getX(), (float)var0.getY())) {
+                if (var2.RelevantTo((float) var0.getX(), (float) var0.getY())) {
                     ByteBufferWriter var3 = var2.startPacket();
                     PacketTypes.PacketType.AddBrokenGlass.doPacket(var3);
-                    var3.putInt((short)var0.getX());
-                    var3.putInt((short)var0.getY());
-                    var3.putInt((short)var0.getZ());
+                    var3.putInt((short) var0.getX());
+                    var3.putInt((short) var0.getY());
+                    var3.putInt((short) var0.getZ());
                     PacketTypes.PacketType.AddBrokenGlass.send(var2);
                 }
             } catch (Throwable var4) {
@@ -8711,8 +8604,8 @@ public class GameServer {
             var7.remoteStrLvl = var5;
             var7.remoteFitLvl = var6;
 
-            for(int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
-                UdpConnection var9 = (UdpConnection)udpEngine.connections.get(var8);
+            for (int var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
+                UdpConnection var9 = (UdpConnection) udpEngine.connections.get(var8);
                 if (var9.getConnectedGUID() != var1.getConnectedGUID()) {
                     IsoPlayer var10 = getAnyPlayerFromConnection(var1);
                     if (var10 != null) {
@@ -8740,8 +8633,8 @@ public class GameServer {
         double var4 = var0.getDouble();
         IsoPlayer var6 = getPlayerFromConnection(var1, var3);
         if (var6 != null) {
-            for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+            for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
                 if (var8.getConnectedGUID() != var1.getConnectedGUID()) {
                     IsoPlayer var9 = getAnyPlayerFromConnection(var1);
                     if (var9 != null) {
@@ -8767,14 +8660,14 @@ public class GameServer {
         int var4 = var0.getInt();
         ArrayList var5 = new ArrayList();
 
-        for(int var6 = 0; var6 < var4; ++var6) {
+        for (int var6 = 0; var6 < var4; ++var6) {
             var5.add(var0.getInt());
         }
 
         IsoPlayer var13 = getPlayerFromConnection(var1, var3);
         if (var13 != null) {
-            for(int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                UdpConnection var8 = (UdpConnection)udpEngine.connections.get(var7);
+            for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
                 if (var8.getConnectedGUID() != var1.getConnectedGUID()) {
                     IsoPlayer var9 = getAnyPlayerFromConnection(var1);
                     if (var9 != null) {
@@ -8784,8 +8677,8 @@ public class GameServer {
                             var10.putShort(var13.OnlineID);
                             var10.putInt(var4);
 
-                            for(int var11 = 0; var11 < var5.size(); ++var11) {
-                                var10.putInt((Integer)var5.get(var11));
+                            for (int var11 = 0; var11 < var5.size(); ++var11) {
+                                var10.putInt((Integer) var5.get(var11));
                             }
 
                             PacketTypes.PacketType.SyncEquippedRadioFreq.send(var8);
@@ -8813,14 +8706,14 @@ public class GameServer {
         String var4 = GameWindow.ReadString(var0);
         String var5 = GameWindow.ReadString(var0);
         IsoPlayer var6 = getPlayerByUserName(var5);
-        Long var7 = (Long)IDToAddressMap.get(var6.getOnlineID());
+        Long var7 = (Long) IDToAddressMap.get(var6.getOnlineID());
         int var8 = var0.getInt();
         int var9 = var0.getInt();
         int var10 = var0.getInt();
         int var11 = var0.getInt();
 
-        for(int var12 = 0; var12 < udpEngine.connections.size(); ++var12) {
-            UdpConnection var13 = (UdpConnection)udpEngine.connections.get(var12);
+        for (int var12 = 0; var12 < udpEngine.connections.size(); ++var12) {
+            UdpConnection var13 = (UdpConnection) udpEngine.connections.get(var12);
             if (var13.getConnectedGUID() == var7) {
                 ByteBufferWriter var14 = var13.startPacket();
                 PacketTypes.PacketType.SendSafehouseInvite.doPacket(var14);
@@ -8852,8 +8745,8 @@ public class GameServer {
             DebugLog.log("WARN: player '" + var5 + "' accepted the invitation, but the safehouse not found for x=" + var6 + " y=" + var7 + " w=" + var8 + " h=" + var9);
         }
 
-        for(int var11 = 0; var11 < udpEngine.connections.size(); ++var11) {
-            UdpConnection var12 = (UdpConnection)udpEngine.connections.get(var11);
+        for (int var11 = 0; var11 < udpEngine.connections.size(); ++var11) {
+            UdpConnection var12 = (UdpConnection) udpEngine.connections.get(var11);
             ByteBufferWriter var13 = var12.startPacket();
             PacketTypes.PacketType.AcceptedSafehouseInvite.doPacket(var13);
             var13.putUTF(var3);
@@ -8869,8 +8762,8 @@ public class GameServer {
     }
 
     public static void sendRadioPostSilence() {
-        for(int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
-            UdpConnection var1 = (UdpConnection)udpEngine.connections.get(var0);
+        for (int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
+            UdpConnection var1 = (UdpConnection) udpEngine.connections.get(var0);
             if (var1.statistic.enable == 3) {
                 sendShortStatistic(var1);
             }
@@ -8882,7 +8775,7 @@ public class GameServer {
         try {
             ByteBufferWriter var1 = var0.startPacket();
             PacketTypes.PacketType.RadioPostSilenceEvent.doPacket(var1);
-            var1.putByte((byte)(ZomboidRadio.POST_RADIO_SILENCE ? 1 : 0));
+            var1.putByte((byte) (ZomboidRadio.POST_RADIO_SILENCE ? 1 : 0));
             PacketTypes.PacketType.RadioPostSilenceEvent.send(var0);
         } catch (Exception var2) {
             var2.printStackTrace();
@@ -8894,14 +8787,14 @@ public class GameServer {
     static void receiveSneezeCough(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
         byte var4 = var0.get();
-        IsoPlayer var5 = (IsoPlayer)IDToPlayerMap.get(var3);
+        IsoPlayer var5 = (IsoPlayer) IDToPlayerMap.get(var3);
         if (var5 != null) {
             float var6 = var5.x;
             float var7 = var5.y;
             int var8 = 0;
 
-            for(int var9 = udpEngine.connections.size(); var8 < var9; ++var8) {
-                UdpConnection var10 = (UdpConnection)udpEngine.connections.get(var8);
+            for (int var9 = udpEngine.connections.size(); var8 < var9; ++var8) {
+                UdpConnection var10 = (UdpConnection) udpEngine.connections.get(var8);
                 if (var1.getConnectedGUID() != var10.getConnectedGUID() && var10.RelevantTo(var6, var7)) {
                     ByteBufferWriter var11 = var10.startPacket();
                     PacketTypes.PacketType.SneezeCough.doPacket(var11);
@@ -8917,7 +8810,7 @@ public class GameServer {
     static void receiveBurnCorpse(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
         short var4 = var0.getShort();
-        IsoPlayer var5 = (IsoPlayer)IDToPlayerMap.get(var3);
+        IsoPlayer var5 = (IsoPlayer) IDToPlayerMap.get(var3);
         if (var5 == null) {
             DebugLog.Network.warn("Player not found by id " + var3);
         } else {
