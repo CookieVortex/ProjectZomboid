@@ -6389,6 +6389,48 @@ public class GameServer {
     //TODO: сделать проверку: насколько далеко ломается от игрока тайл или объект. Если игрок ломает слишком далеко - просто не даем ему это сделать и пишем в логи, т.к. это скорее всего читер
     //P.s. есть возможность ломать этой функцией заприваченные здания и все что в заприваченной зоне
     // Тут есть ArrayList с именами объектов, которые нельзя ломать
+
+    public class SafeHouseManager {
+        private final IsoPlayer isoPlayerInstance;
+
+        public SafeHouseManager(IsoPlayer player) {
+            this.isoPlayerInstance = player;
+            IsoCell isoCellInstance = IsoCell.getInstance();
+        }
+
+        public void checkSafeHouseAccess() {
+            if (isoPlayerInstance != null && isoPlayerInstance.username != null && !isoPlayerInstance.username.isEmpty()) {
+                SafeHouse safeHouse = SafeHouse.isSafeHouse(isoPlayerInstance.getCurrentSquare(), isoPlayerInstance.username, true);
+                // Вывод в консоль (лог)
+                DebugLog.log("Игрок " + isoPlayerInstance.username + " находится в SafeHouse: " + safeHouse.getOwner());
+            }
+        }
+
+        public boolean canBreakTileOrObject(IsoObject targetObject, int maxDistance) {
+            IsoCell cell = IsoCell.getInstance();
+            IsoGridSquare playerSquare = isoPlayerInstance.getCurrentSquare();
+            IsoGridSquare targetSquare = targetObject.getSquare();
+
+            if (playerSquare != null && targetSquare != null) {
+                double playerX = playerSquare.getX();
+                double playerY = playerSquare.getY();
+                double targetX = targetSquare.getX();
+                double targetY = targetSquare.getY();
+
+                double distance = Math.sqrt(Math.pow(playerX - targetX, 2) + Math.pow(playerY - targetY, 2));
+
+                // Вывод в консоль (лог)
+                DebugLog.log("Расстояние между игроком и объектом: " + distance);
+
+                return distance <= maxDistance;
+            }
+
+            return false;
+        }
+    }
+
+
+
     static void receiveRemoveItemFromSquare(ByteBuffer var0, UdpConnection var1, short var2) {
         int var3 = var0.getInt();
         int var4 = var0.getInt();
