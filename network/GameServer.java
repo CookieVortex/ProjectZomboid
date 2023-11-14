@@ -83,16 +83,11 @@ import zombie.worldMap.WorldMapRemotePlayers;
 
 import java.io.*;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
 import java.nio.ByteBuffer;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -168,7 +163,7 @@ public class GameServer {
     public static final ArrayList tempPlayers;
 
     public static void PauseAllClients() {
-        String var0 = "[SERVERMSG] Сервер сохраняет данные...Пожалуйста, подождите";
+        String var0 = "[SERVERMSG] Server saving...Please wait";
 
         for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
             UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
@@ -180,8 +175,46 @@ public class GameServer {
 
     }
 
+    public class SafeHouseManager {
+        private final IsoPlayer isoPlayerInstance;
+
+        public SafeHouseManager(IsoPlayer player) {
+            this.isoPlayerInstance = player;
+            IsoCell isoCellInstance = IsoCell.getInstance();
+        }
+
+        public void checkSafeHouseAccess() {
+            if (isoPlayerInstance != null && isoPlayerInstance.username != null && !isoPlayerInstance.username.isEmpty()) {
+                SafeHouse safeHouse = SafeHouse.isSafeHouse(isoPlayerInstance.getCurrentSquare(), isoPlayerInstance.username, true);
+
+                DebugLog.log("Игрок " + isoPlayerInstance.username + " находится в SafeHouse: " + safeHouse.getOwner());
+            }
+        }
+
+        public boolean canBreakTileOrObject(IsoObject targetObject, int maxDistance) {
+            IsoCell cell = IsoCell.getInstance();
+            IsoGridSquare playerSquare = isoPlayerInstance.getCurrentSquare();
+            IsoGridSquare targetSquare = targetObject.getSquare();
+
+            if (playerSquare != null && targetSquare != null) {
+                double playerX = playerSquare.getX();
+                double playerY = playerSquare.getY();
+                double targetX = targetSquare.getX();
+                double targetY = targetSquare.getY();
+
+                double distance = Math.sqrt(Math.pow(playerX - targetX, 2) + Math.pow(playerY - targetY, 2));
+
+                DebugLog.log("Расстояние между игроком и объектом: " + distance);
+
+                return distance <= maxDistance;
+            }
+
+            return false;
+        }
+    }
+
     public static void UnPauseAllClients() {
-        String var0 = "[SERVERMSG] Игра сохранена, наслаждайтесь :)";
+        String var0 = "[SERVERMSG] Server saved game...enjoy :)";
 
         for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
             UdpConnection var2 = (UdpConnection) udpEngine.connections.get(var1);
@@ -778,11 +811,11 @@ public class GameServer {
                         var20 = (IZomboidPacket) MainLoopNetData2.get(var102);
                         UdpConnection var21;
                         if (var20.isConnect()) {
-                            var21 = ((GameServer.DelayedConnection) var20).connection;
-                            LoggerManager.getLogger("user").write("added connection index=" + var21.index + " " + ((GameServer.DelayedConnection) var20).hostString);
+                            var21 = ((DelayedConnection) var20).connection;
+                            LoggerManager.getLogger("user").write("added connection index=" + var21.index + " " + ((DelayedConnection) var20).hostString);
                             udpEngine.connections.add(var21);
                         } else if (var20.isDisconnect()) {
-                            var21 = ((GameServer.DelayedConnection) var20).connection;
+                            var21 = ((DelayedConnection) var20).connection;
                             LoginQueue.disconnect(var21);
                             LoggerManager.getLogger("user").write(var21.idStr + " \"" + var21.username + "\" removed connection index=" + var21.index);
                             udpEngine.connections.remove(var21);
@@ -984,7 +1017,7 @@ public class GameServer {
                             long var113 = var99 - var100;
                             var94 = 1000.0F / (float) var113;
                             if (!Float.isNaN(var94)) {
-                                var98 = (float) ((double) var98 + Math.min((double) (var94 - var98) * 0.05D, 1.0D));
+                                var98 = (float) ((double) var98 + Math.min((double) (var94 - var98) * 0.05, 1.0));
                             }
 
                             GameTime.instance.FPSMultiplier = 60.0F / var98;
@@ -1228,7 +1261,6 @@ public class GameServer {
     }
 
     static void receiveAddXp(ByteBuffer var0, UdpConnection var1, short var2) {
-        DebugLog.log("<receiveAddXp>");
         AddXp var3 = new AddXp();
         var3.parse(var0, var1);
         if (var3.isConsistent() && var3.validate(var1)) {
@@ -1265,15 +1297,15 @@ public class GameServer {
     /*--- Синхронизация XP (Опыт навыков) и Levels (Уровни навыков) ---*/
     static void receiveSyncXP(ByteBuffer var0, UdpConnection var1, short var2) {
 
-        IsoPlayer var3 = (IsoPlayer) IDToPlayerMap.get(var0.getShort());
+        IsoPlayer var3 = (IsoPlayer)IDToPlayerMap.get(var0.getShort());
         float needXPForLevelUp = 0.0f;
 
         if (var3 != null) {
             /*-- Записываем старые данные XP и уровней --*/
-            ArrayList<IsoGameCharacter.PerkInfo> perkArrayOld = var3.getPerkList();
-            ArrayList<Float> xpArrayOld = null;
-            for (int l = 0; l < perkArrayOld.size(); l++) {
-                xpArrayOld.add(l, var3.getXp().getXP(perkArrayOld.get(l).perk));
+            ArrayList<IsoGameCharacter.PerkInfo> perkArrayOld= var3.getPerkList();
+            ArrayList<Float> xpArrayOld = new ArrayList<>();
+            for (int l = 0; l < perkArrayOld.size(); l++){
+                xpArrayOld.add(l,var3.getXp().getXP(perkArrayOld.get(l).perk));
             }
 
             if (!canModifyPlayerStats(var1, var3)) {
@@ -1287,8 +1319,8 @@ public class GameServer {
                     }
 
 
-                    for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                        UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
+                    for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                        UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
                         if (var5.getConnectedGUID() != var1.getConnectedGUID()) {
                             ByteBufferWriter var6 = var5.startPacket();
                             PacketTypes.PacketType.SyncXP.doPacket(var6);
@@ -1318,11 +1350,11 @@ public class GameServer {
             }*/
 
 
-            ArrayList<IsoGameCharacter.PerkInfo> perkArrayNew = var3.getPerkList();
-            ArrayList<Float> xpArrayNew = null;
+            ArrayList<IsoGameCharacter.PerkInfo> perkArrayNew= var3.getPerkList();
+            ArrayList<Float> xpArrayNew = new ArrayList<>();
 
-            for (int k = 0; k < perkArrayNew.size(); k++) {
-                xpArrayNew.add(k, var3.getXp().getXP(perkArrayNew.get(k).perk));
+            for (int k = 0; k < perkArrayNew.size(); k++){
+                xpArrayNew.add(k,var3.getXp().getXP(perkArrayNew.get(k).perk));
             }
             int oldPerkLevel = 0;
             int newPerkLevel = 0;
@@ -1372,44 +1404,26 @@ public class GameServer {
                 /*- Проверка на понижение УРОВНЕЙ навыков-*/
                 /*TODO: сделать доп проверку на то сколько прожил игрок, иначе
                  * когда игрок умирает - игра может засчитать будто он понизил навыки  */
-
-
-                IsoCell isoCellInstance = IsoCell.getInstance();
-                IsoPlayer isoPlayerInstance = new IsoPlayer(isoCellInstance);
-
-                if (var1.username != null && !var1.username.isEmpty()) {
-                    double hoursSurvived = isoPlayerInstance.getHoursSurvived();
-
-                    if (hoursSurvived < 2.0) {
-                        DebugLog.log("<AntiPerk>: Игрок " + var1.username + "прожил менее двух часов");
-                    } else {
-                        DebugLog.log("<AntiPerk>: Игрок " + var1.username + "прожил два часа или более");
-                    }
-                    String timeSurvived = isoPlayerInstance.getTimeSurvived();
-                    DebugLog.log("<AntiPerk>: Время, проведенное игроком " + var1.username + timeSurvived);
-                }
-
-
                 if (oldPerkLevel > newPerkLevel) {
-                    DebugLog.log("<AntiPerk>: игрок " + var1.username + " понизил навыки !");
+                    DebugLog.log("<AntiPerk>: Player " + var1.username + " lowered skills !");
                 } else {
 
                 /*-- Проверка на то, что игрок не накрутил себе просто так уровень
                   -- проверяет, не равны ли XP прошлого уровня и старого  --*/
                     if ((oldXP == newXP | newXP == 0.0f) & newPerkLevel != 0 & newPerkLevel == oldPerkLevel + 1) {
-                        DebugLog.log("<AntiPerk>: Игрок " + var1.username + " возможно сделал прокачку без опыта!!");
+                        DebugLog.log("<AntiPerk>: Player " + var1.username + " probably did leveling without experience!!");
                     }
 
                     /*-- Проверка на то, мог ли игрок действительно заработать ТАК много опыта --*/
                     /*- если игрок прокачал просто XP, без нового уровня */
                     /*и заработал за раз более 60% необходимого, то бьем тревогу-*/
                     if ((oldPerkLevel == newPerkLevel) & (newXP - oldXP > needXPForLevelUp * 0.6f)) {
-                        DebugLog.log("<AntiPerk>: Игрок " + var1.username + " прокачал слишком много опыта!");
+                        DebugLog.log("<AntiPerk>: Player " + var1.username + " I gained too much experience!");
                     }
                     /*-- Проверка на то, мог ли игрок действительно заработать ТАК много опыта --*/
                     /*- если игрок прокачал XP и Level -*/
                     if ((oldPerkLevel + 1 == newPerkLevel) & (needXPForLevelUp - oldXP + newXP > newPerkLevel)) {
-                        DebugLog.log("<AntiPerk>: Игрок " + var1.username + " прокачал 1 уровень и " + (needXPForLevelUp - oldXP + newXP) + " опыта. Для прокачки полного уровня нужно " + needXPForLevelUp);
+                        DebugLog.log("<AntiPerk>: Player " + var1.username + " leveled up 1 and " + (needXPForLevelUp - oldXP + newXP) + " experience. To level up to full level you need" + needXPForLevelUp);
                     }
                 }
 
@@ -1417,14 +1431,12 @@ public class GameServer {
         }
     }
 
-
     static void receiveChangePlayerStats(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
         IsoPlayer var4 = (IsoPlayer) IDToPlayerMap.get(var3);
         if (var4 != null) {
             String var5 = GameWindow.ReadString(var0);
             var4.setPlayerStats(var0, var5);
-
 
             for (int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
                 UdpConnection var7 = (UdpConnection) udpEngine.connections.get(var6);
@@ -1633,7 +1645,6 @@ public class GameServer {
     }
 
     static void receiveInvMngGetItem(ByteBuffer var0, UdpConnection var1, short var2) throws IOException {
-
         short var3 = var0.getShort();
         IsoPlayer var4 = (IsoPlayer) IDToPlayerMap.get(var3);
         if (var4 != null) {
@@ -1653,7 +1664,6 @@ public class GameServer {
     }
 
     static void receiveInvMngReqItem(ByteBuffer var0, UdpConnection var1, short var2) {
-
         int var3 = 0;
         String var4 = null;
         if (var0.get() == 1) {
@@ -2095,13 +2105,12 @@ public class GameServer {
             var3.parse(var0, var1);
             IsoPlayer var4 = getPlayerFromConnection(var1, var3.id);
 
-
             try {
                 if (var4 == null) {
                     DebugLog.General.error("receivePlayerUpdate: Server received position for unknown player (id:" + var3.id + "). Server will ignore this data.");
                 } else {
                     if (var1.accessLevel == 1 && var4.networkAI.doCheckAccessLevel() && (var3.booleanVariables & (!SystemDisabler.getAllowDebugConnections() && !SystemDisabler.getOverrideServerConnectDebugCheck() ? '\uf000' : '쀀')) != 0 && ServerOptions.instance.AntiCheatProtectionType12.getValue() && PacketValidator.checkUser(var1)) {
-                        PacketValidator.doBanUser(var1, "Любищь читерить админку?)", "Type12");
+                        PacketValidator.doKickUser(var1, var3.getClass().getSimpleName(), "Type12", (String) null);
                     }
 
                     if (!var4.networkAI.checkPosition(var1, var4, (float) PZMath.fastfloor(var3.realx), (float) PZMath.fastfloor(var3.realy))) {
@@ -2287,7 +2296,6 @@ public class GameServer {
     }
 
     static void receiveTradingUIAddItem(ByteBuffer var0, UdpConnection var1, short var2) {
-        DebugLog.log("receiveTradingUIAddItem");
         short var3 = var0.getShort();
         short var4 = var0.getShort();
         InventoryItem var5 = null;
@@ -2464,6 +2472,9 @@ public class GameServer {
         }
     }
 
+    /**
+     * @deprecated
+     */
     @Deprecated
     static void receiveTransactionID(ByteBuffer var0, UdpConnection var1) {
         short var2 = var0.getShort();
@@ -2740,7 +2751,6 @@ public class GameServer {
     }
 
     public static void addXp(IsoPlayer var0, PerkFactory.Perk var1, int var2) {
-        DebugLog.log("<addXp>");
         if (PlayerToAddressMap.containsKey(var0)) {
             long var3 = (Long) PlayerToAddressMap.get(var0);
             UdpConnection var5 = udpEngine.getActiveConnection(var3);
@@ -2885,6 +2895,9 @@ public class GameServer {
         }
     }
 
+    /**
+     * @deprecated
+     */
     @Deprecated
     static void receiveStartFire(ByteBuffer var0, UdpConnection var1, short var2) {
         StartFire var3 = new StartFire();
@@ -3122,6 +3135,9 @@ public class GameServer {
 
     }
 
+    /**
+     * @deprecated
+     */
     @Deprecated
     static void receiveRequestPlayerData(ByteBuffer var0, UdpConnection var1, short var2) {
         IsoPlayer var3 = (IsoPlayer) IDToPlayerMap.get(var0.getShort());
@@ -3353,7 +3369,7 @@ public class GameServer {
         ByteBufferWriter var3 = var1.startPacket();
         long var4 = var0.getLong();
         if (var4 == -1L) {
-            DebugLog.Multiplayer.warn("Player \"%s\" toggled lua debugger", var1.username);
+            DebugLog.Multiplayer.warn("Player \"%s\" toggled lua debugger", new Object[]{var1.username});
         } else {
             if (var1.accessLevel != 32) {
                 return;
@@ -3419,6 +3435,9 @@ public class GameServer {
         }
     }
 
+    /**
+     * @deprecated
+     */
     @Deprecated
     static void receiveWoundInfection(ByteBuffer var0, UdpConnection var1, short var2) {
         short var3 = var0.getShort();
@@ -4128,10 +4147,10 @@ public class GameServer {
                 if (var6.length == 2) {
                     String var7 = var6[0].substring(1);
                     String var8 = var6[1];
-                    GameServer.CCFilter var9 = new GameServer.CCFilter();
+                    CCFilter var9 = new CCFilter();
                     var9.command = var8;
                     var9.allow = var6[0].startsWith("+");
-                    var9.next = (GameServer.CCFilter) ccFilters.get(var7);
+                    var9.next = (CCFilter) ccFilters.get(var7);
                     ccFilters.put(var7, var9);
                 }
             }
@@ -4139,37 +4158,17 @@ public class GameServer {
 
     }
 
-    /*--- Используется для дейстий с игровым миром: наполнение бутылок и канистр жидкостями, починка авто (этим и читерят),
-         работа с фермерством и грядками, чит на хил другого игрока так же работает через эту функцию
-     ---*/
-    static void receiveClientCommand(ByteBuffer byteBuffer, UdpConnection var1, short var2) throws SQLException {
-        /*- Эти команды отправляются читерами, хотя в теории их могут использовать только администраторы -*/
-
-        String[] adminCommands = {
-                // Читы машин
-                "getKey",
-                "cheatHotwire",
-                "repairPart",
-                "repair",
-                "setRust",
-                "setPartCondition",
-                // Чит на шторм (погода изменяется на дождь, кругом бьют молнии и гремит гром)
-                "thunder",
-                //TODO: чит на здоровье - проверить
-                "onHealthCheat"
-        };
-
-        byte var3 = byteBuffer.get();
-        String var4 = GameWindow.ReadString(byteBuffer);
-        String var5 = GameWindow.ReadString(byteBuffer);
-
-        boolean var6 = byteBuffer.get() == 1;
+    static void receiveClientCommand(ByteBuffer var0, UdpConnection var1, short var2) {
+        byte var3 = var0.get();
+        String var4 = GameWindow.ReadString(var0);
+        String var5 = GameWindow.ReadString(var0);
+        boolean var6 = var0.get() == 1;
         KahluaTable var7 = null;
         if (var6) {
             var7 = LuaManager.platform.newTable();
 
             try {
-                TableNetworkUtils.load(var7, byteBuffer);
+                TableNetworkUtils.load(var7, var0);
             } catch (Exception var10) {
                 var10.printStackTrace();
                 return;
@@ -4177,34 +4176,14 @@ public class GameServer {
         }
 
         IsoPlayer var8 = getPlayerFromConnection(var1, var3);
-
         if (var3 == -1) {
             var8 = getAnyPlayerFromConnection(var1);
-        }
-
-        /*- Проверка: есть ли команда в списке запрещенных -*/
-        boolean isAllowedForPlayer = true;
-        for (String command : adminCommands) {
-            if (command.equals(var5)) {
-                isAllowedForPlayer = false;
-            }
-        }
-
-        //TODO: вместо try-catch просто сделать проверку - не равен ли игрок null
-        try {
-            /*-- если игрок отправляет команду и она в списке запрещенных и у игрока нет админ привелегий - кикаем --*/
-            if (!isAllowedForPlayer & var8.getAccessLevel().equals("None")) {
-                GameServer.kick(var1, "UI_Policy_Kick", (String) null);
-                DebugLog.log("<ClientCommand>: kicked " + var8.getUsername() + ". Reason: " + var5);
-            }
-        } catch (Exception e) {
-            DebugLog.log("<ClientCommand> error" + e.toString());
         }
 
         if (var8 == null) {
             DebugLog.log("receiveClientCommand: player is null");
         } else {
-            GameServer.CCFilter var9 = (GameServer.CCFilter) ccFilters.get(var4);
+            CCFilter var9 = (CCFilter) ccFilters.get(var4);
             if (var9 == null || var9.passes(var5)) {
                 ZLogger var10000 = LoggerManager.getLogger("cmd");
                 String var10001 = var1.idStr;
@@ -4461,11 +4440,11 @@ public class GameServer {
         HashSet var9 = new HashSet();
         boolean var10 = false;
         int var11 = 0;
-        byte var12;
+        int var12;
         int var14;
         int var15;
         InventoryItem var16;
-        int var20;
+        int var23;
         if (var4 == 0) {
             var12 = var3.getByte();
             var11 = var0.getInt();
@@ -4490,80 +4469,80 @@ public class GameServer {
             }
         } else if (var4 == 1) {
             if (var8 != null) {
-                var20 = var3.getInt();
+                var12 = var3.getInt();
                 var11 = var0.getInt();
-                ItemContainer var22 = null;
+                ItemContainer var21 = null;
 
                 for (var14 = 0; var14 < var8.getWorldObjects().size(); ++var14) {
-                    IsoWorldInventoryObject var26 = (IsoWorldInventoryObject) var8.getWorldObjects().get(var14);
-                    if (var26 != null && var26.getItem() instanceof InventoryContainer && var26.getItem().id == var20) {
-                        var22 = ((InventoryContainer) var26.getItem()).getInventory();
+                    IsoWorldInventoryObject var25 = (IsoWorldInventoryObject) var8.getWorldObjects().get(var14);
+                    if (var25 != null && var25.getItem() instanceof InventoryContainer && var25.getItem().id == var12) {
+                        var21 = ((InventoryContainer) var25.getItem()).getInventory();
                         break;
                     }
                 }
 
-                if (var22 != null) {
+                if (var21 != null) {
                     for (var14 = 0; var14 < var11; ++var14) {
                         var15 = var3.getInt();
-                        var16 = var22.getItemWithID(var15);
+                        var16 = var21.getItemWithID(var15);
                         if (var16 == null) {
                             alreadyRemoved.add(var15);
                         } else {
-                            var22.Remove(var16);
+                            var21.Remove(var16);
                             var9.add(var16.getFullType());
                         }
                     }
 
-                    var22.setExplored(true);
-                    var22.setHasBeenLooted(true);
+                    var21.setExplored(true);
+                    var21.setHasBeenLooted(true);
                 }
             }
         } else {
             int var17;
-            byte var24;
+            short var20;
             if (var4 == 2) {
-                var12 = var3.getByte();
-                var24 = var3.getByte();
+                var20 = var3.getByte();
+                var23 = var3.getByte();
                 var11 = var0.getInt();
-                if (var8 != null && var12 >= 0 && var12 < var8.getObjects().size()) {
-                    IsoObject var28 = (IsoObject) var8.getObjects().get(var12);
-                    ItemContainer var29 = var28 != null ? var28.getContainerByIndex(var24) : null;
-                    if (var29 != null) {
-                        for (int var33 = 0; var33 < var11; ++var33) {
+                if (var8 != null && var20 >= 0 && var20 < var8.getObjects().size()) {
+                    IsoObject var26 = (IsoObject) var8.getObjects().get(var20);
+                    ItemContainer var27 = var26 != null ? var26.getContainerByIndex(var23) : null;
+                    if (var27 != null) {
+                        for (int var31 = 0; var31 < var11; ++var31) {
                             var17 = var3.getInt();
-                            InventoryItem var18 = var29.getItemWithID(var17);
+                            InventoryItem var18 = var27.getItemWithID(var17);
                             if (var18 == null) {
                                 alreadyRemoved.add(var17);
                             } else {
-                                var29.Remove(var18);
-                                var29.setExplored(true);
-                                var29.setHasBeenLooted(true);
+                                var27.Remove(var18);
+                                var27.setExplored(true);
+                                var27.setHasBeenLooted(true);
                                 var10 = true;
                                 var9.add(var18.getFullType());
                             }
                         }
 
-                        LuaManager.updateOverlaySprite(var28);
+                        LuaManager.updateOverlaySprite(var26);
                     }
                 }
             } else if (var4 == 3) {
-                short var21 = var3.getShort();
-                var24 = var3.getByte();
+                var20 = var3.getShort();
+                var23 = var3.getByte();
                 var11 = var0.getInt();
-                BaseVehicle var30 = VehicleManager.instance.getVehicleByID(var21);
-                if (var30 != null) {
-                    VehiclePart var31 = var30 == null ? null : var30.getPartByIndex(var24);
-                    ItemContainer var34 = var31 == null ? null : var31.getItemContainer();
-                    if (var34 != null) {
+                BaseVehicle var28 = VehicleManager.instance.getVehicleByID(var20);
+                if (var28 != null) {
+                    VehiclePart var29 = var28 == null ? null : var28.getPartByIndex(var23);
+                    ItemContainer var32 = var29 == null ? null : var29.getItemContainer();
+                    if (var32 != null) {
                         for (var17 = 0; var17 < var11; ++var17) {
-                            int var35 = var3.getInt();
-                            InventoryItem var19 = var34.getItemWithID(var35);
+                            int var33 = var3.getInt();
+                            InventoryItem var19 = var32.getItemWithID(var33);
                             if (var19 == null) {
-                                alreadyRemoved.add(var35);
+                                alreadyRemoved.add(var33);
                             } else {
-                                var34.Remove(var19);
-                                var34.setExplored(true);
-                                var34.setHasBeenLooted(true);
+                                var32.Remove(var19);
+                                var32.setExplored(true);
+                                var32.setHasBeenLooted(true);
                                 var10 = true;
                                 var9.add(var19.getFullType());
                             }
@@ -4573,24 +4552,24 @@ public class GameServer {
             }
         }
 
-        for (var20 = 0; var20 < udpEngine.connections.size(); ++var20) {
-            UdpConnection var25 = (UdpConnection) udpEngine.connections.get(var20);
-            if (var25.getConnectedGUID() != var1.getConnectedGUID() && var8 != null && var25.RelevantTo((float) var8.x, (float) var8.y)) {
+        for (var12 = 0; var12 < udpEngine.connections.size(); ++var12) {
+            UdpConnection var24 = (UdpConnection) udpEngine.connections.get(var12);
+            if (var24.getConnectedGUID() != var1.getConnectedGUID() && var8 != null && var24.RelevantTo((float) var8.x, (float) var8.y)) {
                 var0.rewind();
-                ByteBufferWriter var32 = var25.startPacket();
-                PacketTypes.PacketType.RemoveInventoryItemFromContainer.doPacket(var32);
-                var32.bb.put(var0);
-                PacketTypes.PacketType.RemoveInventoryItemFromContainer.send(var25);
+                ByteBufferWriter var30 = var24.startPacket();
+                PacketTypes.PacketType.RemoveInventoryItemFromContainer.doPacket(var30);
+                var30.bb.put(var0);
+                PacketTypes.PacketType.RemoveInventoryItemFromContainer.send(var24);
             }
         }
 
         if (!alreadyRemoved.isEmpty()) {
-            ByteBufferWriter var23 = var1.startPacket();
-            PacketTypes.PacketType.RemoveContestedItemsFromInventory.doPacket(var23);
-            var23.putInt(alreadyRemoved.size());
+            ByteBufferWriter var22 = var1.startPacket();
+            PacketTypes.PacketType.RemoveContestedItemsFromInventory.doPacket(var22);
+            var22.putInt(alreadyRemoved.size());
 
-            for (int var27 = 0; var27 < alreadyRemoved.size(); ++var27) {
-                var23.putInt((Integer) alreadyRemoved.get(var27));
+            for (var23 = 0; var23 < alreadyRemoved.size(); ++var23) {
+                var22.putInt((Integer) alreadyRemoved.get(var23));
             }
 
             PacketTypes.PacketType.RemoveContestedItemsFromInventory.send(var1);
@@ -4610,8 +4589,7 @@ public class GameServer {
             ((DrainableComboItem) var1).updateWeight();
         }
 
-        if (var4 && var1 instanceof Food) {
-            Food var5 = (Food) var1;
+        if (var4 && var1 instanceof Food var5) {
             var5.setHungChange(var0.getFloat());
             var5.setCalories(var0.getFloat());
             var5.setCarbohydrates(var0.getFloat());
@@ -4634,43 +4612,42 @@ public class GameServer {
         int var5 = var0.getInt();
         int var6 = var0.getInt();
         IsoGridSquare var7 = IsoWorld.instance.CurrentCell.getGridSquare(var4, var5, var6);
-        byte var9;
+        int var8;
+        int var9;
         int var10;
         byte var15;
-        int var16;
-        int var17;
-        ItemContainer var23;
-        InventoryItem var25;
+        ItemContainer var21;
+        InventoryItem var23;
         switch (var3) {
             case 0:
                 var15 = var0.get();
-                var17 = var0.getInt();
+                var9 = var0.getInt();
                 if (var7 != null && var15 >= 0 && var15 < var7.getStaticMovingObjects().size()) {
-                    IsoMovingObject var20 = (IsoMovingObject) var7.getStaticMovingObjects().get(var15);
-                    var23 = var20.getContainer();
-                    if (var23 != null) {
-                        var25 = var23.getItemWithID(var17);
-                        if (var25 != null) {
-                            readItemStats(var0, var25);
+                    IsoMovingObject var18 = (IsoMovingObject) var7.getStaticMovingObjects().get(var15);
+                    var21 = var18.getContainer();
+                    if (var21 != null) {
+                        var23 = var21.getItemWithID(var9);
+                        if (var23 != null) {
+                            readItemStats(var0, var23);
                         }
                     }
                 }
                 break;
             case 1:
-                var16 = var0.getInt();
+                var8 = var0.getInt();
                 if (var7 != null) {
-                    for (var17 = 0; var17 < var7.getWorldObjects().size(); ++var17) {
-                        IsoWorldInventoryObject var19 = (IsoWorldInventoryObject) var7.getWorldObjects().get(var17);
-                        if (var19.getItem() != null && var19.getItem().id == var16) {
-                            readItemStats(var0, var19.getItem());
+                    for (var9 = 0; var9 < var7.getWorldObjects().size(); ++var9) {
+                        IsoWorldInventoryObject var17 = (IsoWorldInventoryObject) var7.getWorldObjects().get(var9);
+                        if (var17.getItem() != null && var17.getItem().id == var8) {
+                            readItemStats(var0, var17.getItem());
                             break;
                         }
 
-                        if (var19.getItem() instanceof InventoryContainer) {
-                            var23 = ((InventoryContainer) var19.getItem()).getInventory();
-                            var25 = var23.getItemWithID(var16);
-                            if (var25 != null) {
-                                readItemStats(var0, var25);
+                        if (var17.getItem() instanceof InventoryContainer) {
+                            var21 = ((InventoryContainer) var17.getItem()).getInventory();
+                            var23 = var21.getItemWithID(var8);
+                            if (var23 != null) {
+                                readItemStats(var0, var23);
                                 break;
                             }
                         }
@@ -4682,21 +4659,21 @@ public class GameServer {
                 var9 = var0.get();
                 var10 = var0.getInt();
                 if (var7 != null && var15 >= 0 && var15 < var7.getObjects().size()) {
-                    IsoObject var21 = (IsoObject) var7.getObjects().get(var15);
-                    ItemContainer var24 = var21.getContainerByIndex(var9);
-                    if (var24 != null) {
-                        InventoryItem var26 = var24.getItemWithID(var10);
-                        if (var26 != null) {
-                            readItemStats(var0, var26);
+                    IsoObject var19 = (IsoObject) var7.getObjects().get(var15);
+                    ItemContainer var22 = var19.getContainerByIndex(var9);
+                    if (var22 != null) {
+                        InventoryItem var24 = var22.getItemWithID(var10);
+                        if (var24 != null) {
+                            readItemStats(var0, var24);
                         }
                     }
                 }
                 break;
             case 3:
-                short var8 = var0.getShort();
+                var8 = var0.getShort();
                 var9 = var0.get();
                 var10 = var0.getInt();
-                BaseVehicle var11 = VehicleManager.instance.getVehicleByID(var8);
+                BaseVehicle var11 = VehicleManager.instance.getVehicleByID((short) var8);
                 if (var11 != null) {
                     VehiclePart var12 = var11.getPartByIndex(var9);
                     if (var12 != null) {
@@ -4711,14 +4688,14 @@ public class GameServer {
                 }
         }
 
-        for (var16 = 0; var16 < udpEngine.connections.size(); ++var16) {
-            UdpConnection var18 = (UdpConnection) udpEngine.connections.get(var16);
-            if (var18 != var1 && var18.RelevantTo((float) var4, (float) var5)) {
-                ByteBufferWriter var22 = var18.startPacket();
-                PacketTypes.PacketType.ItemStats.doPacket(var22);
+        for (var8 = 0; var8 < udpEngine.connections.size(); ++var8) {
+            UdpConnection var16 = (UdpConnection) udpEngine.connections.get(var8);
+            if (var16 != var1 && var16.RelevantTo((float) var4, (float) var5)) {
+                ByteBufferWriter var20 = var16.startPacket();
+                PacketTypes.PacketType.ItemStats.doPacket(var20);
                 var0.rewind();
-                var22.bb.put(var0);
-                PacketTypes.PacketType.ItemStats.send(var18);
+                var20.bb.put(var0);
+                PacketTypes.PacketType.ItemStats.send(var16);
             }
         }
 
@@ -4941,7 +4918,7 @@ public class GameServer {
         } else {
             ItemContainer var11 = null;
             IsoObject var12 = null;
-            byte var13;
+            int var13;
             int var21;
             if (var4 == 0) {
                 var13 = var3.getByte();
@@ -4955,73 +4932,74 @@ public class GameServer {
                     var11 = var14.getContainer();
                 }
             } else if (var4 == 1) {
-                int var20 = var3.getInt();
+                var13 = var3.getInt();
 
                 for (var21 = 0; var21 < var8.getWorldObjects().size(); ++var21) {
                     IsoWorldInventoryObject var15 = (IsoWorldInventoryObject) var8.getWorldObjects().get(var21);
-                    if (var15 != null && var15.getItem() instanceof InventoryContainer && var15.getItem().id == var20) {
+                    if (var15 != null && var15.getItem() instanceof InventoryContainer && var15.getItem().id == var13) {
                         var11 = ((InventoryContainer) var15.getItem()).getInventory();
                         break;
                     }
                 }
 
                 if (var11 == null) {
-                    DebugLog.log("ERROR sendItemsToContainer can't find world item with id=" + var20);
+                    DebugLog.log("ERROR sendItemsToContainer can't find world item with id=" + var13);
                     return;
                 }
             } else {
+                short var20;
                 byte var22;
                 if (var4 == 2) {
-                    var13 = var3.getByte();
+                    var20 = var3.getByte();
                     var22 = var3.getByte();
-                    if (var13 < 0 || var13 >= var8.getObjects().size()) {
+                    if (var20 < 0 || var20 >= var8.getObjects().size()) {
                         DebugLog.log("ERROR sendItemsToContainer invalid object index");
 
-                        for (int var24 = 0; var24 < var8.getObjects().size(); ++var24) {
-                            if (((IsoObject) var8.getObjects().get(var24)).getContainer() != null) {
-                                var13 = (byte) var24;
+                        for (int var23 = 0; var23 < var8.getObjects().size(); ++var23) {
+                            if (((IsoObject) var8.getObjects().get(var23)).getContainer() != null) {
+                                var20 = (byte) var23;
                                 var22 = 0;
                                 break;
                             }
                         }
 
-                        if (var13 == -1) {
+                        if (var20 == -1) {
                             return;
                         }
                     }
 
-                    var12 = (IsoObject) var8.getObjects().get(var13);
+                    var12 = (IsoObject) var8.getObjects().get(var20);
                     var11 = var12 != null ? var12.getContainerByIndex(var22) : null;
                 } else if (var4 == 3) {
-                    short var23 = var3.getShort();
+                    var20 = var3.getShort();
                     var22 = var3.getByte();
-                    BaseVehicle var27 = VehicleManager.instance.getVehicleByID(var23);
-                    if (var27 == null) {
+                    BaseVehicle var26 = VehicleManager.instance.getVehicleByID(var20);
+                    if (var26 == null) {
                         DebugLog.log("ERROR sendItemsToContainer invalid vehicle id");
                         return;
                     }
 
-                    VehiclePart var16 = var27.getPartByIndex(var22);
+                    VehiclePart var16 = var26.getPartByIndex(var22);
                     var11 = var16 == null ? null : var16.getItemContainer();
                 }
             }
 
             if (var11 != null) {
                 try {
-                    ArrayList var25 = CompressIdenticalItems.load(var3.bb, 195, (ArrayList) null, (ArrayList) null);
+                    ArrayList var24 = CompressIdenticalItems.load(var3.bb, 195, (ArrayList) null, (ArrayList) null);
 
-                    for (var21 = 0; var21 < var25.size(); ++var21) {
-                        InventoryItem var28 = (InventoryItem) var25.get(var21);
-                        if (var28 != null) {
-                            if (var11.containsID(var28.id)) {
+                    for (var21 = 0; var21 < var24.size(); ++var21) {
+                        InventoryItem var27 = (InventoryItem) var24.get(var21);
+                        if (var27 != null) {
+                            if (var11.containsID(var27.id)) {
                                 System.out.println("Error: Dupe item ID for " + var1.username);
-                                logDupeItem(var1, var28.getDisplayName());
+                                logDupeItem(var1, var27.getDisplayName());
                             } else {
-                                var11.addItem(var28);
+                                var11.addItem(var27);
                                 var11.setExplored(true);
-                                var9.add(var28.getFullType());
+                                var9.add(var27.getFullType());
                                 if (var12 instanceof IsoMannequin) {
-                                    ((IsoMannequin) var12).wearItem(var28, (IsoGameCharacter) null);
+                                    ((IsoMannequin) var12).wearItem(var27, (IsoGameCharacter) null);
                                 }
                             }
                         }
@@ -5043,9 +5021,9 @@ public class GameServer {
             UdpConnection var19 = (UdpConnection) udpEngine.connections.get(var18);
             if (var19.getConnectedGUID() != var1.getConnectedGUID() && var19.RelevantTo((float) var8.x, (float) var8.y)) {
                 var0.rewind();
-                ByteBufferWriter var26 = var19.startPacket();
-                PacketTypes.PacketType.AddInventoryItemToContainer.doPacket(var26);
-                var26.bb.put(var0);
+                ByteBufferWriter var25 = var19.startPacket();
+                PacketTypes.PacketType.AddInventoryItemToContainer.doPacket(var25);
+                var25.bb.put(var0);
                 PacketTypes.PacketType.AddInventoryItemToContainer.send(var19);
             }
         }
@@ -5055,100 +5033,13 @@ public class GameServer {
 
     public static void addConnection(UdpConnection var0) {
         synchronized (MainLoopNetDataHighPriorityQ) {
-            MainLoopNetDataHighPriorityQ.add(new GameServer.DelayedConnection(var0, true));
+            MainLoopNetDataHighPriorityQ.add(new DelayedConnection(var0, true));
         }
     }
 
     public static void addDisconnect(UdpConnection var0) {
         synchronized (MainLoopNetDataHighPriorityQ) {
-            MainLoopNetDataHighPriorityQ.add(new GameServer.DelayedConnection(var0, false));
-        }
-    }
-
-    public static IsoPlayer getPlayerByUsername(String username) {
-        ArrayList<IsoPlayer> players = GameServer.getPlayers();
-        for (IsoPlayer player : players) {
-            if (player.getDisplayName().equals(username)) {
-                return player;
-            }
-        }
-        DebugLog.log("Couldn't find an instance of a player with a nickname: " + username);
-        return null;
-    }
-
-    /**
-     * Получение активного подключения игрока по нику
-     *
-     * @param username Ник игрока
-     * @return активное подключение UdpConnection, либо null если такой игрок не найден
-     */
-    public static UdpConnection getPlayerUdpConnectionByUsername(String username) {
-        IsoPlayer player = getPlayerByUsername(username);
-        if (player == null) {
-            DebugLog.log("Couldn't find an instance of a player with a nickname: " + username);
-            return null;
-        }
-
-        UdpConnection connection = GameServer.getConnectionFromPlayer(player);
-        if (connection == null) {
-            DebugLog.log("Couldn't find an active connection of a player with a nickname: " + username);
-            return null;
-        }
-        return connection;
-    }
-
-    // Получение игрока из БД
-    public static IsoPlayer getPlayerData(UdpConnection udpConnection) {
-        if (udpConnection == null || udpConnection.username == null) {
-            DebugLog.log("The transmitted player connection is not valid!");
-            return null;
-        }
-
-        try {
-            // Получение доступа к полю соединения с БД
-            ServerPlayerDB serverPlayerDBInstance = ServerPlayerDB.getInstance();
-            Field connField = ServerPlayerDB.class.getDeclaredField("conn");
-            connField.setAccessible(true);
-            Connection conn = (Connection) connField.get(serverPlayerDBInstance);
-
-            String query = (GameServer.bCoop && SteamUtils.isSteamModeEnabled())
-                    ? "SELECT * FROM networkPlayers WHERE steamid=? AND world=?"
-                    : "SELECT * FROM networkPlayers WHERE username=? AND world=?";
-
-            try (PreparedStatement preparedStatement = conn.prepareStatement(query)) {
-                preparedStatement.setString(1, GameServer.bCoop && SteamUtils.isSteamModeEnabled() ? udpConnection.idStr : udpConnection.username);
-                preparedStatement.setString(2, Core.GameSaveWorld);
-
-                ResultSet resultSet = preparedStatement.executeQuery();
-
-                if (!resultSet.next()) {
-                    DebugLog.log("User data with username '" + udpConnection.username + "' not found.");
-                    return null;
-                }
-
-                int worldVersion = resultSet.getInt(10);
-                byte[] dataBytes = resultSet.getBytes(11);
-                if (dataBytes == null || dataBytes.length == 0 || worldVersion == 0) {
-                    DebugLog.log("No data available for player with a nickname: " + udpConnection.username);
-                    return null;
-                }
-
-                IsoPlayer player = getPlayerByUsername(udpConnection.username);
-                if (player == null) {
-                    DebugLog.log("Couldn't find an instance of a player with a nickname: " + udpConnection.username);
-                    return null;
-                }
-
-                // Загрузка данных из БД в экземпляр игрока
-                player.load(ByteBuffer.wrap(dataBytes), worldVersion);
-                return player;
-            } catch (SQLException | IOException e) {
-                ExceptionLogger.logException(e);
-                return null;
-            }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            e.printStackTrace();
-            return null;
+            MainLoopNetDataHighPriorityQ.add(new DelayedConnection(var0, false));
         }
     }
 
@@ -5272,7 +5163,6 @@ public class GameServer {
     }
 
     static void receiveReplaceOnCooked(ByteBuffer var0, UdpConnection var1, short var2) {
-        DebugLog.log("receiveReplaceOnCooked");
         ByteBufferReader var3 = new ByteBufferReader(var0);
         int var4 = var3.getInt();
         int var5 = var3.getInt();
@@ -5310,8 +5200,8 @@ public class GameServer {
                                     }
 
                                     sendRemoveItemFromContainer(var12, var14);
-                                    var12.Remove((InventoryItem) var14);
-                                    IsoWorld.instance.CurrentCell.addToProcessItemsRemove((InventoryItem) var14);
+                                    var12.Remove(var14);
+                                    IsoWorld.instance.CurrentCell.addToProcessItemsRemove(var14);
                                 }
                             }
                         }
@@ -5715,7 +5605,7 @@ public class GameServer {
                 var10 = var9.getWaterAmount();
 
                 try {
-                    var9.getModData().load((ByteBuffer) var0, 195);
+                    var9.getModData().load(var0, 195);
                 } catch (IOException var12) {
                     var12.printStackTrace();
                 }
@@ -6384,61 +6274,12 @@ public class GameServer {
         }
     }
 
-    /*--- Отвечает за то, чтобы объекты и предметы удалялись с карты игроком ---*/
-    //TODO: сделать проверку: находится ли тайл в SafeHouse-зоне и имеет ли игрок к ней доступ
-    //TODO: сделать проверку: насколько далеко ломается от игрока тайл или объект. Если игрок ломает слишком далеко - просто не даем ему это сделать и пишем в логи, т.к. это скорее всего читер
-    //P.s. есть возможность ломать этой функцией заприваченные здания и все что в заприваченной зоне
-    // Тут есть ArrayList с именами объектов, которые нельзя ломать
-
-    public class SafeHouseManager {
-        private final IsoPlayer isoPlayerInstance;
-
-        public SafeHouseManager(IsoPlayer player) {
-            this.isoPlayerInstance = player;
-            IsoCell isoCellInstance = IsoCell.getInstance();
-        }
-
-        public void checkSafeHouseAccess() {
-            if (isoPlayerInstance != null && isoPlayerInstance.username != null && !isoPlayerInstance.username.isEmpty()) {
-                SafeHouse safeHouse = SafeHouse.isSafeHouse(isoPlayerInstance.getCurrentSquare(), isoPlayerInstance.username, true);
-                // Вывод в консоль (лог)
-                DebugLog.log("Игрок " + isoPlayerInstance.username + " находится в SafeHouse: " + safeHouse.getOwner());
-            }
-        }
-
-        public boolean canBreakTileOrObject(IsoObject targetObject, int maxDistance) {
-            IsoCell cell = IsoCell.getInstance();
-            IsoGridSquare playerSquare = isoPlayerInstance.getCurrentSquare();
-            IsoGridSquare targetSquare = targetObject.getSquare();
-
-            if (playerSquare != null && targetSquare != null) {
-                double playerX = playerSquare.getX();
-                double playerY = playerSquare.getY();
-                double targetX = targetSquare.getX();
-                double targetY = targetSquare.getY();
-
-                double distance = Math.sqrt(Math.pow(playerX - targetX, 2) + Math.pow(playerY - targetY, 2));
-
-                // Вывод в консоль (лог)
-                DebugLog.log("Расстояние между игроком и объектом: " + distance);
-
-                return distance <= maxDistance;
-            }
-
-            return false;
-        }
-    }
-
-
-
     static void receiveRemoveItemFromSquare(ByteBuffer var0, UdpConnection var1, short var2) {
         int var3 = var0.getInt();
         int var4 = var0.getInt();
         int var5 = var0.getInt();
         int var6 = var0.getInt();
-
         IsoGridSquare var7 = IsoWorld.instance.CurrentCell.getGridSquare(var3, var4, var5);
-
         if (var7 != null && var6 >= 0 && var6 < var7.getObjects().size()) {
             IsoObject var8 = (IsoObject) var7.getObjects().get(var6);
             if (!(var8 instanceof IsoWorldInventoryObject)) {
@@ -6475,53 +6316,32 @@ public class GameServer {
                 throw new IllegalArgumentException("OnObjectAboutToBeRemoved not allowed to remove the object");
             }
 
-            /*- Список объектов, в которых появляется важный лут и которые мы не позволяем ломать, в список не входят ящики и книжные полки -*/
-            String[] objectsBlacklist = new String[]{"furniture_storage_02_0", "furniture_storage_02_1", "furniture_storage_02_2", "furniture_storage_02_3", "furniture_storage_02_4", "furniture_storage_02_5", "furniture_storage_02_6", "furniture_storage_02_7", "furniture_storage_02_8", "furniture_storage_02_9", "furniture_storage_02_10", "furniture_storage_02_11", "furniture_storage_02_12", "furniture_storage_02_13", "furniture_storage_02_14", "furniture_storage_02_15", "location_business_machinery_01_32", "location_business_machinery_01_33", "location_business_machinery_01_34", "location_business_machinery_01_35", "location_shop_generic_01_0", "location_shop_generic_01_1", "location_shop_generic_01_2", "location_shop_generic_01_3", "location_shop_generic_01_8", "location_shop_generic_01_9", "location_shop_generic_01_10", "location_shop_generic_01_11", "location_shop_generic_01_12", "location_shop_generic_01_13", "location_shop_generic_01_14", "location_shop_generic_01_15", "location_shop_generic_01_16", "location_shop_generic_01_17", "location_shop_generic_01_18", "location_shop_generic_01_19", "location_shop_generic_01_20", "location_shop_generic_01_21", "location_shop_generic_01_22", "location_shop_generic_01_23", "location_shop_generic_01_24", "location_shop_generic_01_25", "location_shop_generic_01_26", "location_shop_generic_01_27", "location_shop_generic_01_28", "location_shop_generic_01_29", "location_shop_generic_01_30", "location_shop_generic_01_31", "location_shop_generic_01_32", "location_shop_generic_01_33", "location_shop_generic_01_34", "location_shop_generic_01_35", "location_shop_generic_01_36", "location_shop_generic_01_37", "location_shop_generic_01_38", "location_shop_generic_01_39", "location_shop_generic_01_40", "location_shop_generic_01_41", "location_shop_generic_01_42", "location_shop_generic_01_45", "location_shop_generic_01_46", "location_shop_generic_01_47", "location_shop_generic_01_48", "location_shop_generic_01_49", "location_shop_generic_01_50", "location_shop_generic_01_51", "location_shop_generic_01_52", "location_shop_generic_01_53", "location_shop_generic_01_54", "location_restaurant_bar_01_0", "location_restaurant_bar_01_1", "location_restaurant_bar_01_2", "location_restaurant_bar_01_3", "location_restaurant_bar_01_4", "location_restaurant_bar_01_5", "location_restaurant_bar_01_6", "location_restaurant_bar_01_7", "location_restaurant_bar_01_16", "location_restaurant_bar_01_17", "location_restaurant_bar_01_18", "location_restaurant_bar_01_19", "location_restaurant_bar_01_20", "location_restaurant_bar_01_21", "location_restaurant_bar_01_22", "location_restaurant_bar_01_23", "location_restaurant_bar_01_29", "location_restaurant_bar_01_30", "location_restaurant_bar_01_31", "location_restaurant_bar_01_32", "location_restaurant_bar_01_33", "location_restaurant_bar_01_34", "location_restaurant_bar_01_35", "location_restaurant_bar_01_56", "location_restaurant_bar_01_57", "location_restaurant_bar_01_58", "location_restaurant_bar_01_59", "location_restaurant_bar_01_60", "location_restaurant_bar_01_61", "location_restaurant_bar_01_62", "location_restaurant_bar_01_63", "location_restaurant_bar_01_64", "location_restaurant_bar_01_65", "location_restaurant_bar_01_66", "location_restaurant_bar_01_72", "location_restaurant_bar_01_73", "location_restaurant_bar_01_74", "location_shop_generic_01_75", "location_shop_generic_01_76", "location_shop_generic_01_77", "location_shop_generic_01_78", "location_shop_generic_01_79", "location_shop_generic_01_80", "location_shop_generic_01_81", "location_shop_generic_01_82", "location_shop_generic_01_83", "location_shop_generic_01_84", "location_shop_generic_01_85", "location_shop_generic_01_86", "location_shop_generic_01_87", "location_shop_generic_01_88", "location_shop_generic_01_89", "location_shop_generic_01_90", "location_shop_generic_01_91", "location_shop_generic_01_92", "location_shop_generic_01_93", "location_shop_generic_01_94", "location_shop_generic_01_95", "location_shop_generic_01_96", "location_shop_generic_01_97", "location_shop_generic_01_98", "location_shop_generic_01_99", "location_shop_generic_01_100", "location_shop_generic_01_101", "location_shop_generic_01_102", "location_shop_generic_01_103", "appliances_refrigeration_01_16", "appliances_refrigeration_01_17", "appliances_refrigeration_01_18", "appliances_refrigeration_01_19", "appliances_refrigeration_01_20", "appliances_refrigeration_01_21", "appliances_refrigeration_01_22", "appliances_refrigeration_01_23", "appliances_refrigeration_01_38", "appliances_refrigeration_01_39", "appliances_refrigeration_01_44", "appliances_refrigeration_01_45", "appliances_refrigeration_01_46", "appliances_refrigeration_01_47", "location_shop_accessories_01_16", "location_shop_accessories_01_17", "location_shop_accessories_01_18", "location_shop_accessories_01_19", "location_shop_accessories_01_28", "location_shop_accessories_01_29", "location_shop_accessories_01_30", "location_shop_accessories_01_31", "location_shop_zippee_01_0", "location_shop_zippee_01_1", "location_shop_zippee_01_2", "location_shop_zippee_01_3", "location_shop_zippee_01_4", "location_shop_zippee_01_5", "location_shop_zippee_01_8", "location_shop_zippee_01_9", "location_shop_zippee_01_10", "location_shop_zippee_01_11", "location_shop_zippee_01_12", "location_shop_zippee_01_13", "location_shop_zippee_01_14", "location_shop_zippee_01_15", "location_shop_zippee_01_16", "location_shop_zippee_01_17", "location_shop_zippee_01_18", "location_shop_zippee_01_19", "location_shop_zippee_01_20", "location_shop_zippee_01_21", "location_shop_zippee_01_22", "location_shop_zippee_01_23", "location_shop_zippee_01_24", "location_shop_zippee_01_25", "location_shop_zippee_01_26", "location_shop_zippee_01_27", "location_shop_gas2go_01_12", "location_shop_gas2go_01_13", "location_shop_gas2go_01_14", "location_shop_gas2go_01_15", "location_shop_gas2go_01_16", "location_shop_gas2go_01_17", "location_shop_gas2go_01_18", "location_shop_gas2go_01_19", "location_shop_gas2go_01_20", "location_shop_gas2go_01_21", "location_shop_gas2go_01_22", "location_shop_gas2go_01_23", "location_shop_fossoil_01_12", "location_shop_fossoil_01_13", "location_shop_fossoil_01_14", "location_shop_fossoil_01_15", "location_shop_fossoil_01_16", "location_shop_fossoil_01_17", "location_shop_fossoil_01_18", "location_shop_fossoil_01_19", "location_shop_fossoil_01_20", "location_shop_fossoil_01_21", "location_shop_fossoil_01_22", "location_shop_fossoil_01_23", "location_shop_fossoil_01_34", "location_shop_fossoil_01_35", "location_shop_fossoil_01_36", "location_shop_fossoil_01_37", "location_entertainment_theatre_01_120", "location_entertainment_theatre_01_121", "location_entertainment_theatre_01_122", "location_entertainment_theatre_01_123", "location_entertainment_theatre_01_124", "location_entertainment_theatre_01_125", "location_entertainment_theatre_01_126", "location_entertainment_theatre_01_127", "location_entertainment_theatre_01_128", "location_entertainment_theatre_01_129", "location_entertainment_theatre_01_130", "location_entertainment_theatre_01_131", "location_entertainment_theatre_01_132", "location_entertainment_theatre_01_133", "location_entertainment_theatre_01_134", "location_entertainment_theatre_01_135", "furniture_storage_02_28", "furniture_storage_02_29", "furniture_storage_02_30", "furniture_storage_02_31", "location_shop_generic_01_102", "location_shop_generic_01_101", "location_shop_generic_01_99", "location_shop_generic_01_97"};
-            int var13 = objectsBlacklist.length;
-
-            /*- Проходим по списку запрещенных для ломания объектов. И устанавливаем флаг - можно или нельзя ломать*/
-            boolean itAllowedDestroy = true;
-            for (int var14 = 0; var14 < var13; ++var14) {
-                String object = objectsBlacklist[var14];
-                try {
-                    if (var8.getSprite().getName().equals(object)) {
-                        itAllowedDestroy = false;
-                    }
-                } catch (Exception var17) {
-                }
+            var8.removeFromWorld();
+            var8.removeFromSquare();
+            var7.RecalcAllWithNeighbours(true);
+            if (!(var8 instanceof IsoWorldInventoryObject)) {
+                IsoWorld.instance.CurrentCell.checkHaveRoof(var3, var4);
+                MapCollisionData.instance.squareChanged(var7);
+                PolygonalMap2.instance.squareChanged(var7);
+                ServerMap.instance.physicsCheck(var3, var4);
+                IsoRegions.squareChanged(var7, true);
+                IsoGenerator.updateGenerator(var7);
             }
 
-            /*- Если нельзя ломать и игрок не является админом - пишем в логи и не даем ломать, иначе позволяем ломать-*/
-            if (!itAllowedDestroy & var1.accessLevel < 31) {
-                DebugLog.log("<GRIF>: " + var1.username + " try to remove object>");
-            } else {
-
-                var8.removeFromWorld();
-                var8.removeFromSquare();
-                var7.RecalcAllWithNeighbours(true);
-                if (!(var8 instanceof IsoWorldInventoryObject)) {
-                    IsoWorld.instance.CurrentCell.checkHaveRoof(var3, var4);
-                    MapCollisionData.instance.squareChanged(var7);
-                    PolygonalMap2.instance.squareChanged(var7);
-                    ServerMap.instance.physicsCheck(var3, var4);
-                    IsoRegions.squareChanged(var7, true);
-                    IsoGenerator.updateGenerator(var7);
-                }
-
-                for (var12 = 0; var12 < udpEngine.connections.size(); ++var12) {
-                    UdpConnection var16 = (UdpConnection) udpEngine.connections.get(var12);
-                    if (var16.getConnectedGUID() != var1.getConnectedGUID()) {
-                        ByteBufferWriter var11 = var16.startPacket();
-                        PacketTypes.PacketType.RemoveItemFromSquare.doPacket(var11);
-                        var11.putInt(var3);
-                        var11.putInt(var4);
-                        var11.putInt(var5);
-                        var11.putInt(var6);
-                        PacketTypes.PacketType.RemoveItemFromSquare.send(var16);
-                    }
+            for (var12 = 0; var12 < udpEngine.connections.size(); ++var12) {
+                UdpConnection var13 = (UdpConnection) udpEngine.connections.get(var12);
+                if (var13.getConnectedGUID() != var1.getConnectedGUID()) {
+                    ByteBufferWriter var11 = var13.startPacket();
+                    PacketTypes.PacketType.RemoveItemFromSquare.doPacket(var11);
+                    var11.putInt(var3);
+                    var11.putInt(var4);
+                    var11.putInt(var5);
+                    var11.putInt(var6);
+                    PacketTypes.PacketType.RemoveItemFromSquare.send(var13);
                 }
             }
         }
+
     }
 
     public static int RemoveItemFromMap(IsoObject var0) {
@@ -6594,22 +6414,20 @@ public class GameServer {
 
     }
 
-    /*--- Используется для того чтобы игроки ставили на карту предметы и строили объекты ---*/
-    static void receiveAddItemToMap(ByteBuffer byteBuffer, UdpConnection connection, short var2) {
-        IsoObject var3 = WorldItemTypes.createFromBuffer(byteBuffer);
+    static void receiveAddItemToMap(ByteBuffer var0, UdpConnection var1, short var2) {
+        IsoObject var3 = WorldItemTypes.createFromBuffer(var0);
         if (var3 instanceof IsoFire && ServerOptions.instance.NoFire.getValue()) {
-            DebugLog.log("user \"" + connection.username + "\" tried to start a fire");
+            DebugLog.log("user \"" + var1.username + "\" tried to start a fire");
         } else {
-            var3.loadFromRemoteBuffer(byteBuffer);
+            var3.loadFromRemoteBuffer(var0);
             if (var3.square != null) {
                 DebugLog.log(DebugType.Objects, "object: added " + var3 + " index=" + var3.getObjectIndex() + " " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
                 ZLogger var10000;
                 String var10001;
                 if (var3 instanceof IsoWorldInventoryObject) {
                     var10000 = LoggerManager.getLogger("item");
-                    var10001 = connection.idStr;
-
-                    var10000.write(var10001 + " \"" + connection.username + "\" floor +1 " + (int) var3.getX() + "," + (int) var3.getY() + "," + (int) var3.getZ() + " [" + ((IsoWorldInventoryObject) var3).getItem().getFullType() + "]");
+                    var10001 = var1.idStr;
+                    var10000.write(var10001 + " \"" + var1.username + "\" floor +1 " + (int) var3.getX() + "," + (int) var3.getY() + "," + (int) var3.getZ() + " [" + ((IsoWorldInventoryObject) var3).getItem().getFullType() + "]");
                 } else {
                     String var4 = var3.getName() != null ? var3.getName() : var3.getObjectName();
                     if (var3.getSprite() != null && var3.getSprite().getName() != null) {
@@ -6617,8 +6435,8 @@ public class GameServer {
                     }
 
                     var10000 = LoggerManager.getLogger("map");
-                    var10001 = connection.idStr;
-                    var10000.write(var10001 + " \"" + connection.username + "\" added " + var4 + " at " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
+                    var10001 = var1.idStr;
+                    var10000.write(var10001 + " \"" + var1.username + "\" added " + var4 + " at " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
                 }
 
                 var3.addToWorld();
@@ -6635,7 +6453,7 @@ public class GameServer {
 
                 for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
                     UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var7);
-                    if (var5.getConnectedGUID() != connection.getConnectedGUID() && var5.RelevantTo((float) var3.square.x, (float) var3.square.y)) {
+                    if (var5.getConnectedGUID() != var1.getConnectedGUID() && var5.RelevantTo((float) var3.square.x, (float) var3.square.y)) {
                         ByteBufferWriter var6 = var5.startPacket();
                         PacketTypes.PacketType.AddItemToMap.doPacket(var6);
                         var3.writeToRemoteBuffer(var6);
@@ -6692,7 +6510,7 @@ public class GameServer {
         Iterator var5 = IDToAddressMap.entrySet().iterator();
 
         while (var5.hasNext()) {
-            Entry var6 = (Entry) var5.next();
+            Map.Entry var6 = (Map.Entry) var5.next();
             if ((Long) var6.getValue() == var0.getConnectedGUID()) {
                 var5.remove();
             }
@@ -6786,7 +6604,7 @@ public class GameServer {
     }
 
     private static void sendHitCharacter(HitCharacterPacket var0, UdpConnection var1) {
-        /*--- Можно юзать как средство отслеживания ударов и т.п ---*/
+        DebugLog.Damage.trace(var0.getDescription());
 
         for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
             UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
@@ -6918,17 +6736,14 @@ public class GameServer {
             short var3 = var0.getShort();
             float var4 = var0.getFloat();
             IsoPlayer var5 = getPlayerFromConnection(var1, var3);
-            float startHealth = var5.getBodyDamage().getOverallBodyHealth();
             if (var5 != null) {
                 var5.getBodyDamage().load(var0, IsoWorld.getWorldVersion());
                 var5.getStats().setPain(var4);
-                sendPlayerDamage(var5, var1);
-                if ((startHealth - var5.getBodyDamage().getOverallBodyHealth()) != (startHealth - var4)) {
-                    //ServerWorldDatabase.instance.banIp(var1.ip, var1.username,"Любишь читерить машины, заднеприводный?", true);
-                    //GameServer.kick(var1, "Попался как дешевка на чите!", (String)null);
-                    DebugLog.log("<PVP-Cheat> " + var5.username + " получил урона: " + var4 + " и должен иметь " + (startHealth - var4) + " хп но имеет " + (startHealth - var5.getBodyDamage().getOverallBodyHealth()));
+                if (Core.bDebug) {
+                    DebugLog.Multiplayer.debugln("ReceivePlayerDamage: \"%s\" %f", var5.getUsername(), var5.getBodyDamage().getOverallBodyHealth());
                 }
 
+                sendPlayerDamage(var5, var1);
             }
         } catch (Exception var6) {
             DebugLog.Multiplayer.printException(var6, "ReceivePlayerDamage: failed", LogSeverity.Error);
@@ -6937,6 +6752,10 @@ public class GameServer {
     }
 
     public static void sendPlayerDamage(IsoPlayer var0, UdpConnection var1) {
+        if (Core.bDebug) {
+            DebugLog.Multiplayer.debugln("SendPlayerDamage: \"%s\" %f", var0.getUsername(), var0.getBodyDamage().getOverallBodyHealth());
+        }
+
         for (int var2 = 0; var2 < udpEngine.connections.size(); ++var2) {
             UdpConnection var3 = (UdpConnection) udpEngine.connections.get(var2);
             if (var1.getConnectedGUID() != var3.getConnectedGUID()) {
@@ -7039,56 +6858,18 @@ public class GameServer {
     }
 
     static void receiveActionPacket(ByteBuffer var0, UdpConnection var1, short var2) {
-        ArrayList<String> tempActionList = null;
-        String startActionString = null;
-        String stopActionString = null;
-
-        long startTimeAction;
-        long stopTimeAction;
         try {
             ActionPacket var3 = new ActionPacket();
             var3.parse(var0, var1);
             Iterator var4 = udpEngine.connections.iterator();
 
-            actionsList.add(var3.getDescription() + "*" + System.currentTimeMillis());
-
-            if (actionsList.size() > 10) {
-                for (int i = 0; i < udpEngine.connections.size(); ++i) {
-                    tempActionList.clear();
-                    String playerName = udpEngine.connections.get(var2).username;
-                    for (int j = 0; j < actionsList.size(); j++) {
-                        if (actionsList.get(j).contains(playerName)) {
-                            tempActionList.add(actionsList.get(j));
-                        }
-                    }
-
-                    for (int k = 0; k < tempActionList.size(); k++) {
-                        if (tempActionList.get(k).contains("start") & tempActionList.get(k + 1).contains("stop")) {
-                            startActionString = tempActionList.get(k);
-                            stopActionString = tempActionList.get(k + 1);
-
-                            startTimeAction = Long.parseLong(startActionString.substring(startActionString.indexOf("*") + 1));
-                            stopTimeAction = Long.parseLong(stopActionString.substring(stopActionString.indexOf("*") + 1));
-
-
-                            DebugLog.log("Разница во времени для " + playerName + " :" + (stopTimeAction - startTimeAction));
-                        }
-                    }
-
-                }
-                actionsList.clear();
-            }
-
-
             while (var4.hasNext()) {
                 UdpConnection var5 = (UdpConnection) var4.next();
-
                 if (var5.getConnectedGUID() != var1.getConnectedGUID() && var3.isRelevant(var5)) {
                     ByteBufferWriter var6 = var5.startPacket();
                     PacketTypes.PacketType.ActionPacket.doPacket(var6);
                     var3.write(var6);
                     PacketTypes.PacketType.ActionPacket.send(var5);
-                    var3.getDescription();
                 }
             }
         } catch (Exception var7) {
@@ -7449,10 +7230,11 @@ public class GameServer {
         short var3 = var0.getShort();
         tempPlayers.clear();
 
+        int var5;
         IsoPlayer var6;
         for (int var4 = 0; var4 < var3; ++var4) {
-            short var5 = var0.getShort();
-            var6 = (IsoPlayer) IDToPlayerMap.get(var5);
+            var5 = var0.getShort();
+            var6 = (IsoPlayer) IDToPlayerMap.get(Short.valueOf((short) var5));
             if (var6 != null && shouldSendWorldMapPlayerPosition(var1, var6)) {
                 tempPlayers.add(var6);
             }
@@ -7464,8 +7246,8 @@ public class GameServer {
             var8.putBoolean(true);
             var8.putShort((short) tempPlayers.size());
 
-            for (int var9 = 0; var9 < tempPlayers.size(); ++var9) {
-                var6 = (IsoPlayer) tempPlayers.get(var9);
+            for (var5 = 0; var5 < tempPlayers.size(); ++var5) {
+                var6 = (IsoPlayer) tempPlayers.get(var5);
                 WorldMapRemotePlayer var7 = WorldMapRemotePlayers.instance.getOrCreatePlayer(var6);
                 var7.setPlayer(var6);
                 var8.putShort(var7.getOnlineID());
@@ -7484,28 +7266,6 @@ public class GameServer {
     }
 
     private static void syncClock(UdpConnection var0) {
-
-        DebugLog.log("<SYNC> " + var0.username);
-
-        IsoPlayer[] players = var0.players;
-
-        for (IsoPlayer playerObject : players) {
-            playerObject.setGodMod(false);
-            playerObject.setBuildCheat(false);
-            playerObject.setHealthCheat(false);
-            playerObject.setFarmingCheat(false);
-            playerObject.setMechanicsCheat(false);
-            playerObject.setMovablesCheat(false);
-            playerObject.setTimedActionInstantCheat(false);
-            playerObject.setGodMod(false);
-            playerObject.setGhostMode(false);
-            playerObject.setInvisible(false);
-            playerObject.setNoClip(false);
-
-            sendPlayerExtraInfo(playerObject, var0);
-        }
-
-
         GameTime var1 = GameTime.getInstance();
         ByteBufferWriter var2 = var0.startPacket();
         PacketTypes.PacketType.SyncClock.doPacket(var2);
@@ -7595,7 +7355,7 @@ public class GameServer {
         }
     }
 
-    public static ArrayList getPlayers(ArrayList var0) {
+    public static ArrayList<IsoPlayer> getPlayers(ArrayList<IsoPlayer> var0) {
         var0.clear();
 
         for (int var1 = 0; var1 < udpEngine.connections.size(); ++var1) {
@@ -7612,7 +7372,7 @@ public class GameServer {
         return var0;
     }
 
-    public static ArrayList getPlayers() {
+    public static ArrayList<IsoPlayer> getPlayers() {
         ArrayList var0 = new ArrayList();
         return getPlayers(var0);
     }
@@ -7856,41 +7616,44 @@ public class GameServer {
                     }
                 }
             }
-        } else if (var3 == 0) {
-            byte var15 = var0.get();
-            IsoPlayer var17 = getPlayerFromConnection(var1, var15);
-            byte var19 = var0.get();
-            if (var17 != null) {
-                Radio var21 = null;
-                if (var19 == 1 && var17.getPrimaryHandItem() instanceof Radio) {
-                    var21 = (Radio) var17.getPrimaryHandItem();
-                }
+        } else {
+            short var15;
+            if (var3 == 0) {
+                var15 = var0.get();
+                IsoPlayer var16 = getPlayerFromConnection(var1, var15);
+                byte var18 = var0.get();
+                if (var16 != null) {
+                    Radio var20 = null;
+                    if (var18 == 1 && var16.getPrimaryHandItem() instanceof Radio) {
+                        var20 = (Radio) var16.getPrimaryHandItem();
+                    }
 
-                if (var19 == 2 && var17.getSecondaryHandItem() instanceof Radio) {
-                    var21 = (Radio) var17.getSecondaryHandItem();
-                }
+                    if (var18 == 2 && var16.getSecondaryHandItem() instanceof Radio) {
+                        var20 = (Radio) var16.getSecondaryHandItem();
+                    }
 
-                if (var21 != null && var21.getDeviceData() != null) {
-                    try {
-                        var21.getDeviceData().receiveDeviceDataStatePacket(var0, var1);
-                    } catch (Exception var13) {
-                        System.out.print(var13.getMessage());
+                    if (var20 != null && var20.getDeviceData() != null) {
+                        try {
+                            var20.getDeviceData().receiveDeviceDataStatePacket(var0, var1);
+                        } catch (Exception var13) {
+                            System.out.print(var13.getMessage());
+                        }
                     }
                 }
-            }
-        } else if (var3 == 2) {
-            short var16 = var0.getShort();
-            short var18 = var0.getShort();
-            BaseVehicle var20 = VehicleManager.instance.getVehicleByID(var16);
-            if (var20 != null) {
-                VehiclePart var23 = var20.getPartByIndex(var18);
-                if (var23 != null) {
-                    DeviceData var22 = var23.getDeviceData();
+            } else if (var3 == 2) {
+                var15 = var0.getShort();
+                short var17 = var0.getShort();
+                BaseVehicle var19 = VehicleManager.instance.getVehicleByID(var15);
+                if (var19 != null) {
+                    VehiclePart var22 = var19.getPartByIndex(var17);
                     if (var22 != null) {
-                        try {
-                            var22.receiveDeviceDataStatePacket(var0, (UdpConnection) null);
-                        } catch (Exception var12) {
-                            System.out.print(var12.getMessage());
+                        DeviceData var21 = var22.getDeviceData();
+                        if (var21 != null) {
+                            try {
+                                var21.receiveDeviceDataStatePacket(var0, (UdpConnection) null);
+                            } catch (Exception var12) {
+                                System.out.print(var12.getMessage());
+                            }
                         }
                     }
                 }
@@ -8200,7 +7963,7 @@ public class GameServer {
 
     }
 
-    private static void doTableResult(UdpConnection var0, String var1, ArrayList var2, int var3, int var4) {
+    private static void doTableResult(UdpConnection var0, String var1, ArrayList<DBResult> var2, int var3, int var4) {
         int var5 = 0;
         boolean var6 = true;
         ByteBufferWriter var7 = var0.startPacket();
@@ -8253,7 +8016,7 @@ public class GameServer {
             try {
                 String var3 = GameWindow.ReadString(var0);
                 KahluaTable var4 = LuaManager.platform.newTable();
-                var4.load((ByteBuffer) var0, 195);
+                var4.load(var0, 195);
                 ServerWorldDatabase.instance.executeQuery(var3, var4);
             } catch (Throwable var5) {
                 var5.printStackTrace();
@@ -8366,7 +8129,7 @@ public class GameServer {
         sendTickets((String) null, var1);
     }
 
-    public static boolean sendItemListNet(UdpConnection var0, IsoPlayer var1, ArrayList var2, IsoPlayer var3, String var4, String var5) {
+    public static boolean sendItemListNet(UdpConnection var0, IsoPlayer var1, ArrayList<InventoryItem> var2, IsoPlayer var3, String var4, String var5) {
         for (int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
             UdpConnection var7 = (UdpConnection) udpEngine.connections.get(var6);
             if (var0 == null || var7 != var0) {
@@ -8964,12 +8727,18 @@ public class GameServer {
         static final PerformanceProfileFrameProbe frameStep = new PerformanceProfileFrameProbe("GameServer.frameStep");
         static final PerformanceProfileProbe mainLoopDealWithNetData = new PerformanceProfileProbe("GameServer.mainLoopDealWithNetData");
         static final PerformanceProfileProbe RCONServerUpdate = new PerformanceProfileProbe("RCONServer.update");
+
+        private s_performance() {
+        }
     }
 
     private static final class CCFilter {
         String command;
         boolean allow;
-        GameServer.CCFilter next;
+        CCFilter next;
+
+        private CCFilter() {
+        }
 
         boolean matches(String var1) {
             return this.command.equals(var1) || "*".equals(this.command);
