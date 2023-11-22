@@ -235,6 +235,20 @@ public class GameServer {
         return false;
     }
 
+/*TODO:
+    private static boolean canModifyPlayerStats(UdpConnection var0, IsoPlayer var1) {
+        return (var0.accessLevel & 56) != 0 || var0.havePlayer(var1);
+    }
+    */
+    private static boolean isPlayerUnlimitedCarry(IsoGameCharacter isoGameCharacter, UdpConnection var0, IsoPlayer var1) {
+        if (IsoPlayer.getInstance().username != null && !IsoPlayer.getInstance().username.isEmpty() && var0.accessLevel < 1)
+          if(isoGameCharacter.isUnlimitedCarry()) {
+              DebugLog.log("Player " + IsoPlayer.getInstance().username + " has unlimited transfer enabled.");
+              return false;  // Возвращаем false только если isUnlimitedCarry у игрока включен
+          }
+        return true;
+    }
+
     public static void UnPauseAllClients() {
         String var0 = "[SERVERMSG] Server saved game...enjoy :)";
 
@@ -2370,7 +2384,6 @@ public class GameServer {
                 }
             }
         }
-
     }
 
     static void receiveSyncFaction(ByteBuffer var0, UdpConnection var1, short var2) {
