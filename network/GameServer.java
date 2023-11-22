@@ -175,7 +175,7 @@ public class GameServer {
 
     }
 
-    public class SafeHouseManager {
+    public static class SafeHouseManager {
         private final IsoPlayer isoPlayerInstance;
 
         public SafeHouseManager(IsoPlayer player) {
@@ -192,25 +192,47 @@ public class GameServer {
         }
 
         public boolean canBreakTileOrObject(IsoObject targetObject, int maxDistance) {
-            IsoCell cell = IsoCell.getInstance();
-            IsoGridSquare playerSquare = isoPlayerInstance.getCurrentSquare();
-            IsoGridSquare targetSquare = targetObject.getSquare();
-
-            if (playerSquare != null && targetSquare != null) {
-                double playerX = playerSquare.getX();
-                double playerY = playerSquare.getY();
-                double targetX = targetSquare.getX();
-                double targetY = targetSquare.getY();
-
-                double distance = Math.sqrt(Math.pow(playerX - targetX, 2) + Math.pow(playerY - targetY, 2));
-
-                DebugLog.log("Расстояние между игроком и объектом: " + distance);
-
-                return distance <= maxDistance;
+            if (isWithinDistance(targetObject, maxDistance)) {
+                if (isInSafeHouseZone(targetObject)) {
+                    return false;  // Запретить ломать объект в зоне SafeHouse
+                } else {
+                    return true;  // Разрешить ломать объект вне зоны SafeHouse
+                }
             }
-
             return false;
         }
+    }
+
+    private static boolean isWithinDistance(IsoObject targetObject, int maxDistance) {
+        IsoGridSquare playerSquare = IsoPlayer.getInstance().getCurrentSquare();
+        IsoGridSquare targetSquare = targetObject.getSquare();
+
+        if (playerSquare != null && targetSquare != null) {
+            double playerX = playerSquare.getX();
+            double playerY = playerSquare.getY();
+            double targetX = targetSquare.getX();
+            double targetY = targetSquare.getY();
+
+            double distance = Math.sqrt(Math.pow(playerX - targetX, 2) + Math.pow(playerY - targetY, 2));
+
+            DebugLog.log("Расстояние между игроком и объектом: " + distance);
+
+            return distance <= maxDistance;
+        }
+
+        return false;
+    }
+
+    private static boolean isInSafeHouseZone(IsoObject targetObject) {
+        if (IsoPlayer.getInstance().username != null && !IsoPlayer.getInstance().username.isEmpty()) {
+            SafeHouse safeHouse = SafeHouse.isSafeHouse(IsoPlayer.getInstance().getCurrentSquare(), IsoPlayer.getInstance().username, true);
+
+            DebugLog.log("Игрок " + IsoPlayer.getInstance().username + " находится в SafeHouse: " + safeHouse.getOwner());
+            // Вернуть результат проверки нахождения объекта в зоне SafeHouse
+            return safeHouse != null;
+        }
+        // Вернуть false, если имя пользователя недоступно или пусто
+        return false;
     }
 
     public static void UnPauseAllClients() {
@@ -1297,15 +1319,15 @@ public class GameServer {
     /*--- Синхронизация XP (Опыт навыков) и Levels (Уровни навыков) ---*/
     static void receiveSyncXP(ByteBuffer var0, UdpConnection var1, short var2) {
 
-        IsoPlayer var3 = (IsoPlayer)IDToPlayerMap.get(var0.getShort());
+        IsoPlayer var3 = (IsoPlayer) IDToPlayerMap.get(var0.getShort());
         float needXPForLevelUp = 0.0f;
 
         if (var3 != null) {
             /*-- Записываем старые данные XP и уровней --*/
-            ArrayList<IsoGameCharacter.PerkInfo> perkArrayOld= var3.getPerkList();
+            ArrayList<IsoGameCharacter.PerkInfo> perkArrayOld = var3.getPerkList();
             ArrayList<Float> xpArrayOld = new ArrayList<>();
-            for (int l = 0; l < perkArrayOld.size(); l++){
-                xpArrayOld.add(l,var3.getXp().getXP(perkArrayOld.get(l).perk));
+            for (int l = 0; l < perkArrayOld.size(); l++) {
+                xpArrayOld.add(l, var3.getXp().getXP(perkArrayOld.get(l).perk));
             }
 
             if (!canModifyPlayerStats(var1, var3)) {
@@ -1319,8 +1341,8 @@ public class GameServer {
                     }
 
 
-                    for(int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
-                        UdpConnection var5 = (UdpConnection)udpEngine.connections.get(var4);
+                    for (int var4 = 0; var4 < udpEngine.connections.size(); ++var4) {
+                        UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var4);
                         if (var5.getConnectedGUID() != var1.getConnectedGUID()) {
                             ByteBufferWriter var6 = var5.startPacket();
                             PacketTypes.PacketType.SyncXP.doPacket(var6);
@@ -1340,21 +1362,11 @@ public class GameServer {
 
             }
 
-
-            /* Проверка работы - пишет в логи найденные перки
-            DebugLog.log("<AntiPerk>: " + "Перки игрока " + var1.username);
-            ArrayList<IsoGameCharacter.PerkInfo> perkArray= var3.getPerkList();
-            for (IsoGameCharacter.PerkInfo perkInfo:
-                 perkArray) {
-                DebugLog.log("<AntiPerk>: " + perkInfo.perk.name + ": " + perkInfo.level + ". Total XP = " + perkInfo.perk.getTotalXpForLevel(perkInfo.level));
-            }*/
-
-
-            ArrayList<IsoGameCharacter.PerkInfo> perkArrayNew= var3.getPerkList();
+            ArrayList<IsoGameCharacter.PerkInfo> perkArrayNew = var3.getPerkList();
             ArrayList<Float> xpArrayNew = new ArrayList<>();
 
-            for (int k = 0; k < perkArrayNew.size(); k++){
-                xpArrayNew.add(k,var3.getXp().getXP(perkArrayNew.get(k).perk));
+            for (int k = 0; k < perkArrayNew.size(); k++) {
+                xpArrayNew.add(k, var3.getXp().getXP(perkArrayNew.get(k).perk));
             }
             int oldPerkLevel = 0;
             int newPerkLevel = 0;
@@ -1404,25 +1416,25 @@ public class GameServer {
                 /*- Проверка на понижение УРОВНЕЙ навыков-*/
                 /*TODO: сделать доп проверку на то сколько прожил игрок, иначе
                  * когда игрок умирает - игра может засчитать будто он понизил навыки  */
-                if (oldPerkLevel > newPerkLevel) {
+                if (oldPerkLevel > newPerkLevel && var1.accessLevel != 32) {
                     DebugLog.log("<AntiPerk>: Player " + var1.username + " lowered skills !");
                 } else {
 
                 /*-- Проверка на то, что игрок не накрутил себе просто так уровень
                   -- проверяет, не равны ли XP прошлого уровня и старого  --*/
-                    if ((oldXP == newXP | newXP == 0.0f) & newPerkLevel != 0 & newPerkLevel == oldPerkLevel + 1) {
+                    if ((oldXP == newXP | newXP == 0.0f) & newPerkLevel != 0 & newPerkLevel == oldPerkLevel + 1 && var1.accessLevel != 32) {
                         DebugLog.log("<AntiPerk>: Player " + var1.username + " probably did leveling without experience!!");
                     }
 
                     /*-- Проверка на то, мог ли игрок действительно заработать ТАК много опыта --*/
                     /*- если игрок прокачал просто XP, без нового уровня */
                     /*и заработал за раз более 60% необходимого, то бьем тревогу-*/
-                    if ((oldPerkLevel == newPerkLevel) & (newXP - oldXP > needXPForLevelUp * 0.6f)) {
+                    if ((oldPerkLevel == newPerkLevel) & (newXP - oldXP > needXPForLevelUp * 0.6f) && var1.accessLevel != 32) {
                         DebugLog.log("<AntiPerk>: Player " + var1.username + " I gained too much experience!");
                     }
                     /*-- Проверка на то, мог ли игрок действительно заработать ТАК много опыта --*/
                     /*- если игрок прокачал XP и Level -*/
-                    if ((oldPerkLevel + 1 == newPerkLevel) & (needXPForLevelUp - oldXP + newXP > newPerkLevel)) {
+                    if ((oldPerkLevel + 1 == newPerkLevel) & (needXPForLevelUp - oldXP + newXP > newPerkLevel) && var1.accessLevel != 32) {
                         DebugLog.log("<AntiPerk>: Player " + var1.username + " leveled up 1 and " + (needXPForLevelUp - oldXP + newXP) + " experience. To level up to full level you need" + needXPForLevelUp);
                     }
                 }
