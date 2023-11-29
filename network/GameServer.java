@@ -175,80 +175,6 @@ public class GameServer {
 
     }
 
-    public static class SafeHouseManager {
-        private final IsoPlayer isoPlayerInstance;
-
-        public SafeHouseManager(IsoPlayer player) {
-            this.isoPlayerInstance = player;
-            IsoCell isoCellInstance = IsoCell.getInstance();
-        }
-
-        public void checkSafeHouseAccess() {
-            if (isoPlayerInstance != null && isoPlayerInstance.username != null && !isoPlayerInstance.username.isEmpty()) {
-                SafeHouse safeHouse = SafeHouse.isSafeHouse(isoPlayerInstance.getCurrentSquare(), isoPlayerInstance.username, true);
-
-                DebugLog.log("Игрок " + isoPlayerInstance.username + " находится в SafeHouse: " + safeHouse.getOwner());
-            }
-        }
-
-        public boolean canBreakTileOrObject(IsoObject targetObject, int maxDistance) {
-            if (isWithinDistance(targetObject, maxDistance)) {
-                if (isInSafeHouseZone(targetObject)) {
-                    return false;  // Запретить ломать объект в зоне SafeHouse
-                } else {
-                    return true;  // Разрешить ломать объект вне зоны SafeHouse
-                }
-            }
-            return false;
-        }
-    }
-
-    private static boolean isWithinDistance(IsoObject targetObject, int maxDistance) {
-        IsoGridSquare playerSquare = IsoPlayer.getInstance().getCurrentSquare();
-        IsoGridSquare targetSquare = targetObject.getSquare();
-
-        if (playerSquare != null && targetSquare != null) {
-            double playerX = playerSquare.getX();
-            double playerY = playerSquare.getY();
-            double targetX = targetSquare.getX();
-            double targetY = targetSquare.getY();
-
-            double distance = Math.sqrt(Math.pow(playerX - targetX, 2) + Math.pow(playerY - targetY, 2));
-
-            DebugLog.log("Расстояние между игроком и объектом: " + distance);
-
-            return distance <= maxDistance;
-        }
-
-        return false;
-    }
-
-    private static boolean isInSafeHouseZone(IsoObject targetObject) {
-        if (IsoPlayer.getInstance().username != null && !IsoPlayer.getInstance().username.isEmpty()) {
-            SafeHouse safeHouse = SafeHouse.isSafeHouse(IsoPlayer.getInstance().getCurrentSquare(), IsoPlayer.getInstance().username, true);
-
-            DebugLog.log("Игрок " + IsoPlayer.getInstance().username + " находится в SafeHouse: " + safeHouse.getOwner());
-            // Вернуть результат проверки нахождения объекта в зоне SafeHouse
-            return safeHouse != null;
-        }
-        // Вернуть false, если имя пользователя недоступно или пусто
-        return false;
-    }
-
-/*TODO:
-    private static boolean canModifyPlayerStats(UdpConnection var0, IsoPlayer var1) {
-        return (var0.accessLevel & 56) != 0 || var0.havePlayer(var1);
-    }
-    */
-    private static boolean isPlayerUnlimitedCarry(IsoGameCharacter isoGameCharacter, UdpConnection var0, IsoPlayer var1) {
-        if (IsoPlayer.getInstance().username != null && !IsoPlayer.getInstance().username.isEmpty() && var0.accessLevel < 1)
-          if(isoGameCharacter.isUnlimitedCarry()) {
-              DebugLog.log("Player " + IsoPlayer.getInstance().username + " has unlimited transfer enabled.");
-              return false;  // Возвращаем false только если isUnlimitedCarry у игрока включен
-          }
-        return true;
-    }
-
     public static void UnPauseAllClients() {
         String var0 = "[SERVERMSG] Server saved game...enjoy :)";
 
@@ -6439,62 +6365,84 @@ public class GameServer {
 
     }
 
-    static void receiveAddItemToMap(ByteBuffer var0, UdpConnection var1, short var2) {
-        IsoObject var3 = WorldItemTypes.createFromBuffer(var0);
+    /*--- Используется для того чтобы игроки ставили на карту предметы и строили объекты ---*/
+    //TODO: сделать проверку по списку запрещенных тайлов - какой-нибудь Array или массив с названиями запрещенных для постройки тайлов и потом просто перебирать все
+    static void receiveAddItemToMap(ByteBuffer byteBuffer, UdpConnection connection, short var2) {
+        IsoObject var3 = WorldItemTypes.createFromBuffer(byteBuffer);
+        //Действия в случае, если объект является огнем
         if (var3 instanceof IsoFire && ServerOptions.instance.NoFire.getValue()) {
-            DebugLog.log("user \"" + var1.username + "\" tried to start a fire");
+            DebugLog.log("user \"" + connection.username + "\" tried to start a fire");
         } else {
-            var3.loadFromRemoteBuffer(var0);
+            var3.loadFromRemoteBuffer(byteBuffer);
             if (var3.square != null) {
                 DebugLog.log(DebugType.Objects, "object: added " + var3 + " index=" + var3.getObjectIndex() + " " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
                 ZLogger var10000;
                 String var10001;
+                //Действия в случае, если объект это брошенный на землю предмет
                 if (var3 instanceof IsoWorldInventoryObject) {
                     var10000 = LoggerManager.getLogger("item");
-                    var10001 = var1.idStr;
-                    var10000.write(var10001 + " \"" + var1.username + "\" floor +1 " + (int) var3.getX() + "," + (int) var3.getY() + "," + (int) var3.getZ() + " [" + ((IsoWorldInventoryObject) var3).getItem().getFullType() + "]");
-                } else {
+                    var10001 = connection.idStr;
+
+                    var10000.write(var10001 + " \"" + connection.username + "\" floor +1 " + (int) var3.getX() + "," + (int) var3.getY() + "," + (int) var3.getZ() + " [" + ((IsoWorldInventoryObject) var3).getItem().getFullType() + "]");
+                }
+                // Дейсвтия в случае, если объект - это объект который ставится на землю (стена, генератор, тайл воды)
+                else {
                     String var4 = var3.getName() != null ? var3.getName() : var3.getObjectName();
                     if (var3.getSprite() != null && var3.getSprite().getName() != null) {
                         var4 = var4 + " (" + var3.getSprite().getName() + ")";
                     }
 
                     var10000 = LoggerManager.getLogger("map");
-                    var10001 = var1.idStr;
-                    var10000.write(var10001 + " \"" + var1.username + "\" added " + var4 + " at " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
+                    var10001 = connection.idStr;
+                    var10000.write(var10001 + " \"" + connection.username + "\" added " + var4 + " at " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
                 }
 
-                var3.addToWorld();
-                var3.square.RecalcProperties();
-                if (!(var3 instanceof IsoWorldInventoryObject)) {
-                    var3.square.restackSheetRope();
-                    IsoWorld.instance.CurrentCell.checkHaveRoof(var3.square.getX(), var3.square.getY());
-                    MapCollisionData.instance.squareChanged(var3.square);
-                    PolygonalMap2.instance.squareChanged(var3.square);
-                    ServerMap.instance.physicsCheck(var3.square.x, var3.square.y);
-                    IsoRegions.squareChanged(var3.square);
-                    IsoGenerator.updateGenerator(var3.square);
+                //Если имя тайла не пустое - пишем в логи, что игрок его поставил (чтобы легче было в логах вычислять имена тайлов)
+                if (!var3.getSprite().getName().isEmpty()) {
+                    DebugLog.log("<BUILD> " + " player is add object with name " + var3.getSprite().getName());
                 }
 
-                for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                    UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var7);
-                    if (var5.getConnectedGUID() != var1.getConnectedGUID() && var5.RelevantTo((float) var3.square.x, (float) var3.square.y)) {
-                        ByteBufferWriter var6 = var5.startPacket();
-                        PacketTypes.PacketType.AddItemToMap.doPacket(var6);
-                        var3.writeToRemoteBuffer(var6);
-                        PacketTypes.PacketType.AddItemToMap.send(var5);
+                /*TODO*/
+                //Наша наработка: если имя объекта является blends_natural_02_6 (тайл воды),
+                // то просто на этом прекращаем выполнение функции и ничего не ставится
+                if (var3.getSprite().getName().equals("blends_natural_02_1") ||
+                        var3.getSprite().getName().equals("blends_natural_02_2") ||
+                        var3.getSprite().getName().equals("blends_natural_02_3") ||
+                        var3.getSprite().getName().equals("blends_natural_02_4") ||
+                        var3.getSprite().getName().equals("blends_natural_02_5") ||
+                        var3.getSprite().getName().equals("blends_natural_02_6") ||
+                        var3.getSprite().getName().equals("blends_natural_02_7")) {
+                    DebugLog.log("<BUILD> " + " player want to build WATER. Function is exit and don't build anything!");
+                } else {
+                    var3.addToWorld();
+                    var3.square.RecalcProperties();
+                    if (!(var3 instanceof IsoWorldInventoryObject)) {
+                        var3.square.restackSheetRope();
+                        IsoWorld.instance.CurrentCell.checkHaveRoof(var3.square.getX(), var3.square.getY());
+                        MapCollisionData.instance.squareChanged(var3.square);
+                        PolygonalMap2.instance.squareChanged(var3.square);
+                        ServerMap.instance.physicsCheck(var3.square.x, var3.square.y);
+                        IsoRegions.squareChanged(var3.square);
+                        IsoGenerator.updateGenerator(var3.square);
+                    }
+
+                    for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                        UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var7);
+                        if (var5.getConnectedGUID() != connection.getConnectedGUID() && var5.RelevantTo((float) var3.square.x, (float) var3.square.y)) {
+                            ByteBufferWriter var6 = var5.startPacket();
+                            PacketTypes.PacketType.AddItemToMap.doPacket(var6);
+                            var3.writeToRemoteBuffer(var6);
+                            PacketTypes.PacketType.AddItemToMap.send(var5);
+                        }
+                    }
+
+                    if (!(var3 instanceof IsoWorldInventoryObject)) {
+                        LuaEventManager.triggerEvent("OnObjectAdded", var3);
+                    } else {
+                        ((IsoWorldInventoryObject) var3).dropTime = GameTime.getInstance().getWorldAgeHours();
                     }
                 }
-
-                if (!(var3 instanceof IsoWorldInventoryObject)) {
-                    LuaEventManager.triggerEvent("OnObjectAdded", var3);
-                } else {
-                    ((IsoWorldInventoryObject) var3).dropTime = GameTime.getInstance().getWorldAgeHours();
-                }
-            } else if (bDebug) {
-                DebugLog.log("AddItemToMap: sq is null");
             }
-
         }
     }
 
