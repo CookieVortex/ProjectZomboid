@@ -86,15 +86,23 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class GameServer {
-    public static ArrayList<String> actionsList;
+import static zombie.network.GameClient.connection;
 
+public class GameServer {
+    public static ArrayList<String> idList = new ArrayList<>();
+    public static ArrayList<String> actionsList;
+    private static List<String> allowedItemsIds;
     public static final int MAX_PLAYERS = 512;
     public static final int TimeLimitForProcessPackets = 70;
     public static final int PacketsUpdateRate = 200;
@@ -161,6 +169,7 @@ public class GameServer {
     private static int mainCycleExceptionLogCount;
     public static Thread MainThread;
     public static final ArrayList tempPlayers;
+
 
     public static void PauseAllClients() {
         String var0 = "[SERVERMSG] Server saving...Please wait";
@@ -754,6 +763,9 @@ public class GameServer {
 
             LuaManager.GlobalObject.refreshAnimSets(true);
 
+            /*Загрузка данных*/
+            readIdListFromFile();
+
             while (!bDone) {
                 try {
                     long var101 = System.nanoTime();
@@ -1092,6 +1104,13 @@ public class GameServer {
             var2.printStackTrace();
             return null;
         }
+    }
+
+    public static void initIdList() {
+        idList = new ArrayList<>();
+        readIdListFromFile();
+        DebugLog.log("<InitIDList> " + "Successfully");
+        System.out.println("<InitIDList> " + "Successfully");
     }
 
     private static String handleServerCommand(String var0, UdpConnection var1) {
@@ -6365,8 +6384,18 @@ public class GameServer {
 
     }
 
+    public static List<String> getIdList() {
+        if (idList == null) {
+            initIdList();
+        }
+        return idList;
+    }
+
+
     static void receiveAddItemToMap(ByteBuffer byteBuffer, UdpConnection connection, short var2) {
+        List<String> idList = getIdList();
         IsoObject var3 = WorldItemTypes.createFromBuffer(byteBuffer);
+        //Действия в случае, если объект является огнем
         if (var3 instanceof IsoFire && ServerOptions.instance.NoFire.getValue()) {
             DebugLog.log("user \"" + connection.username + "\" tried to start a fire");
         } else {
@@ -6375,12 +6404,15 @@ public class GameServer {
                 DebugLog.log(DebugType.Objects, "object: added " + var3 + " index=" + var3.getObjectIndex() + " " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
                 ZLogger var10000;
                 String var10001;
+                //Действия в случае, если объект это брошенный на землю предмет
                 if (var3 instanceof IsoWorldInventoryObject) {
                     var10000 = LoggerManager.getLogger("item");
                     var10001 = connection.idStr;
 
                     var10000.write(var10001 + " \"" + connection.username + "\" floor +1 " + (int) var3.getX() + "," + (int) var3.getY() + "," + (int) var3.getZ() + " [" + ((IsoWorldInventoryObject) var3).getItem().getFullType() + "]");
-                } else {
+                }
+                // Действия в случае, если объект - это объект, который ставится на землю (стена, генератор, тайл воды)
+                else {
                     String var4 = var3.getName() != null ? var3.getName() : var3.getObjectName();
                     if (var3.getSprite() != null && var3.getSprite().getName() != null) {
                         var4 = var4 + " (" + var3.getSprite().getName() + ")";
@@ -6390,53 +6422,88 @@ public class GameServer {
                     var10001 = connection.idStr;
                     var10000.write(var10001 + " \"" + connection.username + "\" added " + var4 + " at " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
                 }
-                processBuildingAction(var3, connection);
-            }
-        }
-    }
 
-    /*TODO*/
-    private static void processBuildingAction(IsoObject var3, UdpConnection connection) {
-        if (var3 == null) {
-            // Обработка случая, когда IsoObject не был создан корректно
-            DebugLog.log("<BUILD> " + "Failed to create IsoObject from ByteBuffer. Function is exit and don't build anything!");
-            return;
-        }
 
-        if (!var3.getSprite().getName().isEmpty()) {
-            DebugLog.log("<BUILD> " + " player is adding an object with name " + var3.getSprite().getName());
-        }
+                /*TODO*/
+                //Проверяем не хранится ли в нашем списке устанавливаемый игроком объект, если нет, разрешаем установку
+                if (var3.getSprite() != null && idList.contains(var3.getSprite().getName())) {
+                    DebugLog.log("<BUILD> " + " player want to build " + var3.getSprite().getName() + ". Function is exit and don't build anything!");
+                    System.out.println("Sprite name: " + var3.getSprite().getName());
+                } else {
+                    DebugLog.log("Not found in idList: " + var3.getSprite().getName().trim());
+                    var3.addToWorld();
+                    var3.square.RecalcProperties();
+                    if (!(var3 instanceof IsoWorldInventoryObject)) {
+                        var3.square.restackSheetRope();
+                        IsoWorld.instance.CurrentCell.checkHaveRoof(var3.square.getX(), var3.square.getY());
+                        MapCollisionData.instance.squareChanged(var3.square);
+                        PolygonalMap2.instance.squareChanged(var3.square);
+                        ServerMap.instance.physicsCheck(var3.square.x, var3.square.y);
+                        IsoRegions.squareChanged(var3.square);
+                        IsoGenerator.updateGenerator(var3.square);
+                    }
 
-        if (var3.getSprite() != null && var3.getSprite().getName().equals("blends_natural")) {
-            DebugLog.log("<BUILD> " + " player: " + connection.username + " wants to build WATER" + var3.getSprite().getName() + ". Function is exit and don't build anything!");
-        } else {
-            var3.addToWorld();
-            var3.square.RecalcProperties();
-            if (!(var3 instanceof IsoWorldInventoryObject)) {
-                var3.square.restackSheetRope();
-                IsoWorld.instance.CurrentCell.checkHaveRoof(var3.square.getX(), var3.square.getY());
-                MapCollisionData.instance.squareChanged(var3.square);
-                PolygonalMap2.instance.squareChanged(var3.square);
-                ServerMap.instance.physicsCheck(var3.square.x, var3.square.y);
-                IsoRegions.squareChanged(var3.square);
-                IsoGenerator.updateGenerator(var3.square);
-            }
-            for (UdpConnection var5 : udpEngine.connections) {
-                if (var5.getConnectedGUID() != connection.getConnectedGUID() && var5.RelevantTo((float) var3.square.x, (float) var3.square.y)) {
-                    ByteBufferWriter var6 = var5.startPacket();
-                    PacketTypes.PacketType.AddItemToMap.doPacket(var6);
-                    var3.writeToRemoteBuffer(var6);
-                    PacketTypes.PacketType.AddItemToMap.send(var5);
+                    for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
+                        UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var7);
+                        if (var5.getConnectedGUID() != connection.getConnectedGUID() && var5.RelevantTo((float) var3.square.x, (float) var3.square.y)) {
+                            ByteBufferWriter var6 = var5.startPacket();
+                            PacketTypes.PacketType.AddItemToMap.doPacket(var6);
+                            var3.writeToRemoteBuffer(var6);
+                            PacketTypes.PacketType.AddItemToMap.send(var5);
+                        }
+                    }
+
+                    //Включать на случай тестов, если что-то пойдет не так
+
+                    /*
+                    idList.forEach(id -> {
+                        DebugLog.log("ID in arrayList: " + id);
+                        DebugLog.log("Tile ID: " + var3.getSprite().getName());
+                        DebugLog.log("Is equals: " + id.equals(var3.getSprite().getName()));
+                        DebugLog.log("Is contains: " + id.contains(var3.getSprite().getName()));
+                    });*/
+
+
+                    if (!(var3 instanceof IsoWorldInventoryObject)) {
+                        LuaEventManager.triggerEvent("OnObjectAdded", var3);
+                    } else {
+                        ((IsoWorldInventoryObject) var3).dropTime = GameTime.getInstance().getWorldAgeHours();
+                    }
                 }
             }
-            if (!(var3 instanceof IsoWorldInventoryObject)) {
-                LuaEventManager.triggerEvent("OnObjectAdded", var3);
-            } else {
-                ((IsoWorldInventoryObject) var3).dropTime = GameTime.getInstance().getWorldAgeHours();
-            }
         }
     }
-    
+
+    /*TODO:*/
+    private static void readIdListFromFile() {
+        idList = new ArrayList<>();
+        Path filePath = Paths.get("C:\\SteamLibrary\\steamapps\\common\\Project Zomboid Dedicated Server\\java\\zombie\\network\\item_ids.txt");
+
+        // Проверяем существование файла
+        if (!Files.exists(filePath)) {
+            try {
+                // Создаем файл, если его нет
+                Files.createFile(filePath);
+            } catch (FileAlreadyExistsException e) {
+                // Файл уже существует, ничего не делаем
+            } catch (IOException e) {
+                // Обработка ошибки создания файла
+                e.printStackTrace();
+                return;
+            }
+        }
+
+        try (BufferedReader reader = Files.newBufferedReader(filePath, StandardCharsets.UTF_8)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                idList.add(line.trim());
+            }
+        } catch (IOException e) {
+            DebugLog.log("Error reading idList from file");
+        }
+        System.out.println("IdList contents: " + idList);
+    }
+
     public static void disconnect(UdpConnection var0, String var1) {
         if (var0.playerDownloadServer != null) {
             try {
@@ -8607,7 +8674,7 @@ public class GameServer {
             PacketTypes.PacketType.Validate.doPacket(var4);
             var5.write(var4);
             PacketTypes.PacketType.Validate.send(var0);
-            var5.log(GameClient.connection, "send-packet");
+            var5.log(connection, "send-packet");
         } catch (Exception var6) {
             var0.cancelPacket();
             DebugLog.Multiplayer.printException(var6, "SendValidatePacket: failed", LogSeverity.Error);
@@ -8618,7 +8685,7 @@ public class GameServer {
     static void receiveValidatePacket(ByteBuffer var0, UdpConnection var1, short var2) {
         ValidatePacket var3 = new ValidatePacket();
         var3.parse(var0, var1);
-        var3.log(GameClient.connection, "receive-packet");
+        var3.log(connection, "receive-packet");
         if (var3.isConsistent()) {
             var3.process(var1);
         }
