@@ -7,3 +7,15 @@ If anomalies are detected (for example, lowering levels without appropriate expe
 # Updates
 Added the ability to add to an external file (.txt) a list of those items, when installed, the administrator should receive a notification about this, I’m talking about prohibited objects that ordinary players cannot install on the server.
 Now you can add any number of item IDs to a text document and they will be checked on the server
+
+Made the work of future administrators a little easier.
+Now all cheating actions on the server will be stored in a separate log file and all actions of players that may indicate cheating will be recorded there.
+
+This file will be created in the standard path
+
+Example:
+11-12-23_20-42-30_CustomLog.txt
+
+Inside:
+
+[11-12-23 20:44:18.166] <BUILD> 192.168.1.000 player wants to build WATER.
