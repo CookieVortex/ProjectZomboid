@@ -1,5 +1,6 @@
 package zombie.network;
 
+import com.sun.tools.javac.Main;
 import se.krka.kahlua.vm.KahluaTable;
 import se.krka.kahlua.vm.KahluaTableIterator;
 import zombie.*;
@@ -100,6 +101,8 @@ import java.util.regex.Pattern;
 import static zombie.network.GameClient.connection;
 
 public class GameServer {
+    private static ZLogger customZLogger;
+
     public static ArrayList<String> idList = new ArrayList<>();
     public static ArrayList<String> actionsList;
     private static List<String> allowedItemsIds;
@@ -765,6 +768,7 @@ public class GameServer {
 
             /*Загрузка данных*/
             readIdListFromFile();
+            initCustomLogger();
 
             while (!bDone) {
                 try {
@@ -6427,8 +6431,10 @@ public class GameServer {
                 /*TODO*/
                 //Проверяем не хранится ли в нашем списке устанавливаемый игроком объект, если нет, разрешаем установку
                 if (var3.getSprite() != null && idList.contains(var3.getSprite().getName())) {
-                    DebugLog.log("<BUILD> " + " player want to build " + var3.getSprite().getName() + ". Function is exit and don't build anything!");
-                    System.out.println("Sprite name: " + var3.getSprite().getName());
+                    //DebugLog.log("<BUILD> " + " player want to build " + var3.getSprite().getName() + ". Function is exit and don't build anything!");
+                    DebugLog.log("<BUILD> " + connection.idStr + " player want to build WATER");
+                    log("<BUILD> " + connection.idStr + " player want to build WATER");
+                    //System.out.println("Sprite name: " + var3.getSprite().getName());
                 } else {
                     DebugLog.log("Not found in idList: " + var3.getSprite().getName().trim());
                     var3.addToWorld();
@@ -6473,11 +6479,40 @@ public class GameServer {
             }
         }
     }
-
     /*TODO:*/
+    private static void initCustomLogger() {
+        customZLogger = LoggerManager.getLogger("CustomLog");
+    }
+
+    // Метод для логирования сообщения
+    public static void log(String message) {
+        if (customZLogger == null) {
+            initCustomLogger();
+        }
+
+        if (customZLogger != null) {
+            customZLogger.write(message);
+        } else {
+            System.err.println("Custom logger is not initialized.");
+        }
+    }
+
     private static void readIdListFromFile() {
         idList = new ArrayList<>();
-        Path filePath = Paths.get("C:\\SteamLibrary\\steamapps\\common\\Project Zomboid Dedicated Server\\java\\zombie\\network\\item_ids.txt");
+        Path directoryPath = Paths.get("java\\zombie\\network\\ID_Options");
+        Path filePath = directoryPath.resolve("item_ids.txt");
+
+        // Проверяем существование директории
+        if (!Files.exists(directoryPath)) {
+            try {
+                // Создаем директорию, если ее нет
+                Files.createDirectories(directoryPath);
+            } catch (IOException e) {
+                // Обработка ошибки создания директории
+                e.printStackTrace();
+                return;
+            }
+        }
 
         // Проверяем существование файла
         if (!Files.exists(filePath)) {
