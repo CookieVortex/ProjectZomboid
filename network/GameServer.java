@@ -1,6 +1,5 @@
 package zombie.network;
 
-import com.sun.tools.javac.Main;
 import se.krka.kahlua.vm.KahluaTable;
 import se.krka.kahlua.vm.KahluaTableIterator;
 import zombie.*;
@@ -99,6 +98,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static zombie.network.GameClient.connection;
+import static zombie.network.GameClient.username;
 
 public class GameServer {
     private static ZLogger customZLogger;
@@ -1381,12 +1381,14 @@ public class GameServer {
                  * когда игрок умирает - игра может засчитать будто он понизил навыки  */
                 if (oldPerkLevel > newPerkLevel && var1.accessLevel != 32) {
                     DebugLog.log("<AntiPerk>: Player " + var1.username + " lowered skills !");
+                    log("<AntiPerk>: Player " + var1.username + " lowered skills !");
                 } else {
 
                 /*-- Проверка на то, что игрок не накрутил себе просто так уровень
                   -- проверяет, не равны ли XP прошлого уровня и старого  --*/
                     if ((oldXP == newXP | newXP == 0.0f) & newPerkLevel != 0 & newPerkLevel == oldPerkLevel + 1 && var1.accessLevel != 32) {
                         DebugLog.log("<AntiPerk>: Player " + var1.username + " probably did leveling without experience!!");
+                        log("<AntiPerk>: Player " + var1.username + " probably did leveling without experience!!");
                     }
 
                     /*-- Проверка на то, мог ли игрок действительно заработать ТАК много опыта --*/
@@ -1394,11 +1396,17 @@ public class GameServer {
                     /*и заработал за раз более 60% необходимого, то бьем тревогу-*/
                     if ((oldPerkLevel == newPerkLevel) & (newXP - oldXP > needXPForLevelUp * 0.6f) && var1.accessLevel != 32) {
                         DebugLog.log("<AntiPerk>: Player " + var1.username + " I gained too much experience!");
+                        log("<AntiPerk>: Player " + var1.username + " I gained too much experience!");
                     }
                     /*-- Проверка на то, мог ли игрок действительно заработать ТАК много опыта --*/
                     /*- если игрок прокачал XP и Level -*/
                     if ((oldPerkLevel + 1 == newPerkLevel) & (needXPForLevelUp - oldXP + newXP > newPerkLevel) && var1.accessLevel != 32) {
-                        DebugLog.log("<AntiPerk>: Player " + var1.username + " leveled up 1 and " + (needXPForLevelUp - oldXP + newXP) + " experience. To level up to full level you need" + needXPForLevelUp);
+                        DebugLog.log("<AntiPerk>: Player " + var1.username
+                                + " leveled up 1 and " + (needXPForLevelUp - oldXP + newXP)
+                                + " experience. To level up to full level you need" + needXPForLevelUp);
+                        log("<AntiPerk>: Player " + var1.username
+                                + " leveled up 1 and " + (needXPForLevelUp - oldXP + newXP)
+                                + " experience. To level up to full level you need" + needXPForLevelUp);
                     }
                 }
 
@@ -1922,6 +1930,7 @@ public class GameServer {
     }
 
     static void receiveSendInventory(ByteBuffer var0, UdpConnection var1, short var2) {
+        sendInventoryHandler(var0, var1);
         short var3 = var0.getShort();
         Long var4 = (Long) IDToAddressMap.get(var3);
         if (var4 != null) {
@@ -2072,6 +2081,7 @@ public class GameServer {
     }
 
     static void receivePlayerUpdate(ByteBuffer var0, UdpConnection var1, short var2) {
+        updatePlayerInventory(var1);
         if (var1.checksumState != UdpConnection.ChecksumState.Done) {
             kick(var1, "UI_Policy_Kick", (String) null);
             var1.forceDisconnect("kick-checksum");
@@ -6395,7 +6405,7 @@ public class GameServer {
         return idList;
     }
 
-
+    /*TODO*/
     static void receiveAddItemToMap(ByteBuffer byteBuffer, UdpConnection connection, short var2) {
         List<String> idList = getIdList();
         IsoObject var3 = WorldItemTypes.createFromBuffer(byteBuffer);
@@ -6427,13 +6437,11 @@ public class GameServer {
                     var10000.write(var10001 + " \"" + connection.username + "\" added " + var4 + " at " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
                 }
 
-
-                /*TODO*/
                 //Проверяем не хранится ли в нашем списке устанавливаемый игроком объект, если нет, разрешаем установку
                 if (var3.getSprite() != null && idList.contains(var3.getSprite().getName())) {
                     //DebugLog.log("<BUILD> " + " player want to build " + var3.getSprite().getName() + ". Function is exit and don't build anything!");
-                    DebugLog.log("<BUILD> " + connection.idStr + " player want to build WATER");
-                    log("<BUILD> " + connection.idStr + " player want to build WATER");
+                    DebugLog.log("<BUILD> " + connection.ip + " player want to build WATER");
+                    log("<BUILD> " + connection.ip + " player want to build WATER");
                     //System.out.println("Sprite name: " + var3.getSprite().getName());
                 } else {
                     DebugLog.log("Not found in idList: " + var3.getSprite().getName().trim());
@@ -6479,7 +6487,84 @@ public class GameServer {
             }
         }
     }
+
+    public static IsoPlayer getPlayerByUdpConnection(UdpConnection udpConnection) {
+        return getPlayerByUsername(udpConnection.username);
+    }
+
+    public static IsoPlayer getPlayerByUsername(String username){
+        for (int connectionIndex = 0; connectionIndex < GameServer.udpEngine.connections.size(); ++connectionIndex) {
+            UdpConnection connection = GameServer.udpEngine.connections.get(connectionIndex);
+
+            for (int playerIndex = 0; playerIndex < 4; ++playerIndex) {
+                IsoPlayer player = connection.players[playerIndex];
+                if (player != null && (player.getDisplayName().equals(username) || player.getUsername().equals(username))) {
+                    return player;
+                }
+            }
+        }
+        return null;
+    }
+
+    public static void updatePlayerInventory(UdpConnection playerConnection){
+        short senderOnlineID = -1;
+        int targetOnlineID = (int) playerConnection.getConnectedGUID(); // onlineID из playerInstance
+                Long mapPlayerID = (Long) GameServer.IDToAddressMap.get(targetOnlineID);
+        if (mapPlayerID != null) {
+            for(int index = 0; index < GameServer.udpEngine.connections.size(); ++index) {
+                UdpConnection connection = GameServer.udpEngine.connections.get(index);
+                if (connection.getConnectedGUID() == mapPlayerID) {
+                    ByteBufferWriter bufferWriter = connection.startPacket();
+                    PacketTypes.PacketType.RequestInventory.doPacket(bufferWriter);
+                    bufferWriter.putShort(senderOnlineID);
+                    PacketTypes.PacketType.RequestInventory.send(connection);
+                    break;
+                }
+            }
+        }
+    }
+
+    public static void sendInventoryHandler (ByteBuffer buffer, UdpConnection connection){
+        IsoPlayer player = getPlayerByUserName(connection.username);
+        short someShortValue = buffer.getShort();
+        int itemCount = buffer.getInt();
+        float capacityWeight = buffer.getFloat();
+        float maxWeight = buffer.getFloat();
+
+        ItemContainer playerInventory = new ItemContainer();
+        for (int i = 0; i < itemCount; ++i) {
+            String module = GameWindow.ReadStringUTF(buffer);
+            String type = GameWindow.ReadStringUTF(buffer);
+            String itemType = module + "." + type;
+            String itemTypeMoveables = "Moveables." + type;
+
+            long itemId = buffer.getLong();
+            long parentId = buffer.getLong();
+            boolean isEquipped = buffer.get() == 1;
+            float someVariable = buffer.getFloat();
+            int count = buffer.getInt();
+            String category = GameWindow.ReadStringUTF(buffer);
+            String container = GameWindow.ReadStringUTF(buffer);
+            boolean isInInventory = buffer.get() == 1;
+
+            InventoryItem item = InventoryItemFactory.CreateItem(itemType);
+            item = (item != null) ? item : InventoryItemFactory.CreateItem(itemTypeMoveables);
+            if (item == null) {
+                DebugLog.log("Item is null with type: " + type);
+                continue;
+            }
+
+            item.setCount(count);
+            playerInventory.addItem(item);
+        }
+        if (player != null) {
+            player.setInventory(playerInventory);
+        }
+    }
+
     /*TODO:*/
+
+    //Создаем кастомный лог и даём ему имя
     private static void initCustomLogger() {
         customZLogger = LoggerManager.getLogger("CustomLog");
     }
