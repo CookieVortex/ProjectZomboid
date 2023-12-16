@@ -98,11 +98,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static zombie.network.GameClient.connection;
-import static zombie.network.GameClient.username;
 
 public class GameServer {
     private static ZLogger customZLogger;
-
     public static ArrayList<String> idList = new ArrayList<>();
     public static ArrayList<String> actionsList;
     private static List<String> allowedItemsIds;
@@ -159,6 +157,7 @@ public class GameServer {
     private static final HashMap playerMovedToFastMap;
     private static ByteBuffer large_file_bb;
     private static long previousSave;
+    private static ItemContainer playerInventory;
     private String poisonousBerry = null;
     private String poisonousMushroom = null;
     private String difficulty = "Hardcore";
@@ -1930,7 +1929,9 @@ public class GameServer {
     }
 
     static void receiveSendInventory(ByteBuffer var0, UdpConnection var1, short var2) {
+        var0.mark();
         sendInventoryHandler(var0, var1);
+        var0.reset();
         short var3 = var0.getShort();
         Long var4 = (Long) IDToAddressMap.get(var3);
         if (var4 != null) {
@@ -1945,7 +1946,6 @@ public class GameServer {
                 }
             }
         }
-
     }
 
     static void receivePlayerStartPMChat(ByteBuffer var0, UdpConnection var1, short var2) {
@@ -4400,7 +4400,6 @@ public class GameServer {
                             var6.putInt(1);
                             var6.putInt(var1.id);
                         }
-
                         PacketTypes.PacketType.RemoveInventoryItemFromContainer.send(var5);
                     }
                 }
@@ -6405,11 +6404,11 @@ public class GameServer {
         return idList;
     }
 
-    /*TODO*/
+
     static void receiveAddItemToMap(ByteBuffer byteBuffer, UdpConnection connection, short var2) {
         List<String> idList = getIdList();
+
         IsoObject var3 = WorldItemTypes.createFromBuffer(byteBuffer);
-        //Действия в случае, если объект является огнем
         if (var3 instanceof IsoFire && ServerOptions.instance.NoFire.getValue()) {
             DebugLog.log("user \"" + connection.username + "\" tried to start a fire");
         } else {
@@ -6418,33 +6417,23 @@ public class GameServer {
                 DebugLog.log(DebugType.Objects, "object: added " + var3 + " index=" + var3.getObjectIndex() + " " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
                 ZLogger var10000;
                 String var10001;
-                //Действия в случае, если объект это брошенный на землю предмет
                 if (var3 instanceof IsoWorldInventoryObject) {
                     var10000 = LoggerManager.getLogger("item");
                     var10001 = connection.idStr;
-
                     var10000.write(var10001 + " \"" + connection.username + "\" floor +1 " + (int) var3.getX() + "," + (int) var3.getY() + "," + (int) var3.getZ() + " [" + ((IsoWorldInventoryObject) var3).getItem().getFullType() + "]");
-                }
-                // Действия в случае, если объект - это объект, который ставится на землю (стена, генератор, тайл воды)
-                else {
+                } else {
                     String var4 = var3.getName() != null ? var3.getName() : var3.getObjectName();
                     if (var3.getSprite() != null && var3.getSprite().getName() != null) {
                         var4 = var4 + " (" + var3.getSprite().getName() + ")";
                     }
-
                     var10000 = LoggerManager.getLogger("map");
                     var10001 = connection.idStr;
                     var10000.write(var10001 + " \"" + connection.username + "\" added " + var4 + " at " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
                 }
-
                 //Проверяем не хранится ли в нашем списке устанавливаемый игроком объект, если нет, разрешаем установку
                 if (var3.getSprite() != null && idList.contains(var3.getSprite().getName())) {
-                    //DebugLog.log("<BUILD> " + " player want to build " + var3.getSprite().getName() + ". Function is exit and don't build anything!");
-                    DebugLog.log("<BUILD> " + connection.ip + " player want to build WATER");
                     log("<BUILD> " + connection.ip + " player want to build WATER");
-                    //System.out.println("Sprite name: " + var3.getSprite().getName());
                 } else {
-                    DebugLog.log("Not found in idList: " + var3.getSprite().getName().trim());
                     var3.addToWorld();
                     var3.square.RecalcProperties();
                     if (!(var3 instanceof IsoWorldInventoryObject)) {
@@ -6492,7 +6481,7 @@ public class GameServer {
         return getPlayerByUsername(udpConnection.username);
     }
 
-    public static IsoPlayer getPlayerByUsername(String username){
+    public static IsoPlayer getPlayerByUsername(String username) {
         for (int connectionIndex = 0; connectionIndex < GameServer.udpEngine.connections.size(); ++connectionIndex) {
             UdpConnection connection = GameServer.udpEngine.connections.get(connectionIndex);
 
@@ -6506,32 +6495,39 @@ public class GameServer {
         return null;
     }
 
-    public static void updatePlayerInventory(UdpConnection playerConnection){
+    public static void updatePlayerInventory(UdpConnection playerConnection) {
         short senderOnlineID = -1;
-        int targetOnlineID = (int) playerConnection.getConnectedGUID(); // onlineID из playerInstance
-                Long mapPlayerID = (Long) GameServer.IDToAddressMap.get(targetOnlineID);
-        if (mapPlayerID != null) {
-            for(int index = 0; index < GameServer.udpEngine.connections.size(); ++index) {
-                UdpConnection connection = GameServer.udpEngine.connections.get(index);
-                if (connection.getConnectedGUID() == mapPlayerID) {
-                    ByteBufferWriter bufferWriter = connection.startPacket();
-                    PacketTypes.PacketType.RequestInventory.doPacket(bufferWriter);
-                    bufferWriter.putShort(senderOnlineID);
-                    PacketTypes.PacketType.RequestInventory.send(connection);
-                    break;
+        IsoPlayer targetPlayer = getPlayerByUserName(playerConnection.username);
+        if (targetPlayer != null) {
+            short targetOnlineID = targetPlayer.getOnlineID();
+
+            Long mapPlayerID = (Long) GameServer.IDToAddressMap.get(targetOnlineID);
+            if (mapPlayerID != null) {
+                for (int index = 0; index < GameServer.udpEngine.connections.size(); ++index) {
+                    UdpConnection connection = GameServer.udpEngine.connections.get(index);
+                    if (connection.getConnectedGUID() == mapPlayerID) {
+                        //DebugLog.log("Sending inventory request to player: " + playerConnection.username);
+                        ByteBufferWriter bufferWriter = connection.startPacket();
+                        PacketTypes.PacketType.RequestInventory.doPacket(bufferWriter);
+                        bufferWriter.putShort(senderOnlineID);
+                        PacketTypes.PacketType.RequestInventory.send(connection);
+                        //DebugLog.log("Inventory request sent.");
+                        break;
+                    }
                 }
             }
         }
     }
 
-    public static void sendInventoryHandler (ByteBuffer buffer, UdpConnection connection){
+
+    public static void sendInventoryHandler(ByteBuffer buffer, UdpConnection connection) {
+        ItemContainer playerInventory = new ItemContainer();
         IsoPlayer player = getPlayerByUserName(connection.username);
         short someShortValue = buffer.getShort();
         int itemCount = buffer.getInt();
         float capacityWeight = buffer.getFloat();
         float maxWeight = buffer.getFloat();
 
-        ItemContainer playerInventory = new ItemContainer();
         for (int i = 0; i < itemCount; ++i) {
             String module = GameWindow.ReadStringUTF(buffer);
             String type = GameWindow.ReadStringUTF(buffer);
@@ -6550,24 +6546,33 @@ public class GameServer {
             InventoryItem item = InventoryItemFactory.CreateItem(itemType);
             item = (item != null) ? item : InventoryItemFactory.CreateItem(itemTypeMoveables);
             if (item == null) {
-                DebugLog.log("Item is null with type: " + type);
+                DebugLog.log("Предмет равен null с типом: " + type);
                 continue;
             }
-
             item.setCount(count);
             playerInventory.addItem(item);
         }
-        if (player != null) {
-            player.setInventory(playerInventory);
-        }
+        if (playerInventory != null) {
+            hasBomb(playerInventory, connection);}
     }
 
-    /*TODO:*/
+    /*TODO*/
+
+    // Метод для проверки наличия Бомбы в инвентаре
+    private static void hasBomb(ItemContainer playerInventory, UdpConnection connection) {
+        for (InventoryItem item : playerInventory.getItems()) {
+            String itemType = item.getType();
+            if (itemType.toLowerCase().contains("aerosolbomb") || itemType.toLowerCase().contains("flametrap") || itemType.toLowerCase().contains("pipebomb")) {
+                DebugLog.log("PipeBomb found " + "" + itemType + " " + connection.username + " " + connection.ip);
+            }
+        }
+    }
 
     //Создаем кастомный лог и даём ему имя
     private static void initCustomLogger() {
         customZLogger = LoggerManager.getLogger("CustomLog");
     }
+
 
     // Метод для логирования сообщения
     public static void log(String message) {
@@ -7430,9 +7435,10 @@ public class GameServer {
         for (int var0 = 0; var0 < udpEngine.connections.size(); ++var0) {
             UdpConnection var1 = (UdpConnection) udpEngine.connections.get(var0);
             syncClock(var1);
+
+            }
         }
 
-    }
 
     public static void sendServerCommand(String var0, String var1, KahluaTable var2, UdpConnection var3) {
         ByteBufferWriter var4 = var3.startPacket();
