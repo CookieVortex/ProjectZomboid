@@ -19,3 +19,10 @@ Example:
 Inside:
 
 [11-12-23 20:44:18.166] <BUILD> 192.168.1.000 player wants to build WATER.
+
+# Updates
+Now you can get the player's inventory, as well as set a search for those items that are not available for use.
+If you want to prevent the use of bombs on the server, then the usual method will not work, so now there is a solution.
+
+[16-12-23 23:58:49.758] LOG  : General     , 1702763929757> 616 233 583> PipeBomb found Marginal 192.168.1.***.
+[16-12-23 23:58:49.762] LOG  : General     , 1702763929761> 616 233 587> PipeBomb found Marginal 192.168.1.***.
