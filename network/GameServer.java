@@ -86,11 +86,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -100,7 +95,6 @@ import java.util.regex.Pattern;
 import static zombie.network.GameClient.connection;
 
 public class GameServer {
-    private static ZLogger customZLogger;
     public static ArrayList<String> idList = new ArrayList<>();
     public static ArrayList<String> actionsList;
     private static List<String> allowedItemsIds;
@@ -766,8 +760,8 @@ public class GameServer {
             LuaManager.GlobalObject.refreshAnimSets(true);
 
             /*Загрузка данных*/
-            readIdListFromFile();
-            initCustomLogger();
+            GameServerHelper.readIdListFromFile();
+            GameServerHelper.initCustomLogger();
 
             while (!bDone) {
                 try {
@@ -1111,9 +1105,8 @@ public class GameServer {
 
     public static void initIdList() {
         idList = new ArrayList<>();
-        readIdListFromFile();
+        GameServerHelper.readIdListFromFile();
         DebugLog.log("<InitIDList> " + "Successfully");
-        System.out.println("<InitIDList> " + "Successfully");
     }
 
     private static String handleServerCommand(String var0, UdpConnection var1) {
@@ -6272,75 +6265,7 @@ public class GameServer {
 
 
     static void receiveAddItemToMap(ByteBuffer byteBuffer, UdpConnection connection, short var2) {
-        List<String> idList = getIdList();
-
-        IsoObject var3 = WorldItemTypes.createFromBuffer(byteBuffer);
-        if (var3 instanceof IsoFire && ServerOptions.instance.NoFire.getValue()) {
-            DebugLog.log("user \"" + connection.username + "\" tried to start a fire");
-        } else {
-            var3.loadFromRemoteBuffer(byteBuffer);
-            if (var3.square != null) {
-                DebugLog.log(DebugType.Objects, "object: added " + var3 + " index=" + var3.getObjectIndex() + " " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
-                ZLogger var10000;
-                String var10001;
-                if (var3 instanceof IsoWorldInventoryObject) {
-                    var10000 = LoggerManager.getLogger("item");
-                    var10001 = connection.idStr;
-                    var10000.write(var10001 + " \"" + connection.username + "\" floor +1 " + (int) var3.getX() + "," + (int) var3.getY() + "," + (int) var3.getZ() + " [" + ((IsoWorldInventoryObject) var3).getItem().getFullType() + "]");
-                } else {
-                    String var4 = var3.getName() != null ? var3.getName() : var3.getObjectName();
-                    if (var3.getSprite() != null && var3.getSprite().getName() != null) {
-                        var4 = var4 + " (" + var3.getSprite().getName() + ")";
-                    }
-                    var10000 = LoggerManager.getLogger("map");
-                    var10001 = connection.idStr;
-                    var10000.write(var10001 + " \"" + connection.username + "\" added " + var4 + " at " + var3.getX() + "," + var3.getY() + "," + var3.getZ());
-                }
-                //Проверяем не хранится ли в нашем списке устанавливаемый игроком объект, если нет, разрешаем установку
-                if (var3.getSprite() != null && idList.contains(var3.getSprite().getName())) {
-                    log("<BUILD> " + connection.ip + " player want to build WATER");
-                } else {
-                    var3.addToWorld();
-                    var3.square.RecalcProperties();
-                    if (!(var3 instanceof IsoWorldInventoryObject)) {
-                        var3.square.restackSheetRope();
-                        IsoWorld.instance.CurrentCell.checkHaveRoof(var3.square.getX(), var3.square.getY());
-                        MapCollisionData.instance.squareChanged(var3.square);
-                        PolygonalMap2.instance.squareChanged(var3.square);
-                        ServerMap.instance.physicsCheck(var3.square.x, var3.square.y);
-                        IsoRegions.squareChanged(var3.square);
-                        IsoGenerator.updateGenerator(var3.square);
-                    }
-
-                    for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
-                        UdpConnection var5 = (UdpConnection) udpEngine.connections.get(var7);
-                        if (var5.getConnectedGUID() != connection.getConnectedGUID() && var5.RelevantTo((float) var3.square.x, (float) var3.square.y)) {
-                            ByteBufferWriter var6 = var5.startPacket();
-                            PacketTypes.PacketType.AddItemToMap.doPacket(var6);
-                            var3.writeToRemoteBuffer(var6);
-                            PacketTypes.PacketType.AddItemToMap.send(var5);
-                        }
-                    }
-
-                    //Включать на случай тестов, если что-то пойдет не так
-
-                    /*
-                    idList.forEach(id -> {
-                        DebugLog.log("ID in arrayList: " + id);
-                        DebugLog.log("Tile ID: " + var3.getSprite().getName());
-                        DebugLog.log("Is equals: " + id.equals(var3.getSprite().getName()));
-                        DebugLog.log("Is contains: " + id.contains(var3.getSprite().getName()));
-                    });*/
-
-
-                    if (!(var3 instanceof IsoWorldInventoryObject)) {
-                        LuaEventManager.triggerEvent("OnObjectAdded", var3);
-                    } else {
-                        ((IsoWorldInventoryObject) var3).dropTime = GameTime.getInstance().getWorldAgeHours();
-                    }
-                }
-            }
-        }
+        GameServerHelper.receiveAddItemToMapExecute(byteBuffer, connection, var2);
     }
 
     public static IsoPlayer getPlayerByUdpConnection(UdpConnection udpConnection) {
@@ -6418,85 +6343,12 @@ public class GameServer {
             playerInventory.addItem(item);
         }
         if (playerInventory != null) {
-            hasBomb(playerInventory, connection);
+            GameServerHelper.hasBomb(playerInventory, connection);
         }
     }
-
-    /*TODO*/
 
     public static void receiveSyncXP(ByteBuffer buffer, UdpConnection udpConnection, short var2) {
         GameServerHelper.onReceiveSyncXP(buffer, udpConnection, var2);
-    }
-
-    // Метод для проверки наличия Бомбы в инвентаре
-    private static void hasBomb(ItemContainer playerInventory, UdpConnection connection) {
-        for (InventoryItem item : playerInventory.getItems()) {
-            String itemType = item.getType();
-            if (itemType.toLowerCase().contains("aerosolbomb") || itemType.toLowerCase().contains("flametrap") || itemType.toLowerCase().contains("pipebomb")) {
-                DebugLog.log("PipeBomb found " + "" + itemType + " " + connection.username + " " + connection.ip);
-            }
-        }
-    }
-
-    //Создаем кастомный лог и даём ему имя
-    private static void initCustomLogger() {
-        customZLogger = LoggerManager.getLogger("CustomLog");
-    }
-
-
-    // Метод для логирования сообщения
-    public static void log(String message) {
-        if (customZLogger == null) {
-            initCustomLogger();
-        }
-
-        if (customZLogger != null) {
-            customZLogger.write(message);
-        } else {
-            System.err.println("Custom logger is not initialized.");
-        }
-    }
-
-    private static void readIdListFromFile() {
-        idList = new ArrayList<>();
-        Path directoryPath = Paths.get("java\\zombie\\network\\ID_Options");
-        Path filePath = directoryPath.resolve("item_ids.txt");
-
-        // Проверяем существование директории
-        if (!Files.exists(directoryPath)) {
-            try {
-                // Создаем директорию, если ее нет
-                Files.createDirectories(directoryPath);
-            } catch (IOException e) {
-                // Обработка ошибки создания директории
-                e.printStackTrace();
-                return;
-            }
-        }
-
-        // Проверяем существование файла
-        if (!Files.exists(filePath)) {
-            try {
-                // Создаем файл, если его нет
-                Files.createFile(filePath);
-            } catch (FileAlreadyExistsException e) {
-                // Файл уже существует, ничего не делаем
-            } catch (IOException e) {
-                // Обработка ошибки создания файла
-                e.printStackTrace();
-                return;
-            }
-        }
-
-        try (BufferedReader reader = Files.newBufferedReader(filePath, StandardCharsets.UTF_8)) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                idList.add(line.trim());
-            }
-        } catch (IOException e) {
-            DebugLog.log("Error reading idList from file");
-        }
-        System.out.println("IdList contents: " + idList);
     }
 
     public static void disconnect(UdpConnection var0, String var1) {
