@@ -26,3 +26,5 @@ If you want to prevent the use of bombs on the server, then the usual method wil
 
 LOG  : General, 1702763929757> 616 233 583> PipeBomb found Marginal 192.168.1.***.
 LOG  : General, 1702763929761> 616 233 587> PipeBomb found Marginal 192.168.1.***.
+# Updates
+Now it’s easier to work with self-written methods, I moved them to a separate file and connected them to the main one
