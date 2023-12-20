@@ -28,5 +28,7 @@ LOG  : General, 1702763929757> 616 233 583> PipeBomb found Marginal 192.168.1.
 LOG  : General, 1702763929761> 616 233 587> PipeBomb found Marginal 192.168.1.***.
 # Updates
 Now it’s easier to work with self-written methods, I moved them to a separate file and connected them to the main one
-
-<img />https://imgur.com/tWrG8GN
+![Screenshot_4](https://github.com/CookieVortex/ProjectZomboid/assets/24642100/947a1421-2aba-4442-8f20-dd0112c5802d)
+![Screenshot_3](https://github.com/CookieVortex/ProjectZomboid/assets/24642100/a1567d61-1120-4cf0-bf5d-92a8355dc2da)
+![Screenshot_2](https://github.com/CookieVortex/ProjectZomboid/assets/24642100/21a6096a-3884-4c5d-a5a9-31cc551c9761)
+![Screenshot_1](https://github.com/CookieVortex/ProjectZomboid/assets/24642100/e63a202b-08f5-401e-b739-efdd8f8fcdf7)
