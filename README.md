@@ -31,7 +31,7 @@ Now it’s easier to work with self-written methods, I moved them to a separate 
 # Updates
 Results: Automatic creation of a folder and file inside for the administrator, in which you create a list for those objects that cannot be used by ordinary players
 If a player uses this object, a ban occurs on the server by IP and player name 🙄 
-![Screenshot_4](https://github.com/CookieVortex/ProjectZomboid/assets/24642100/947a1421-2aba-4442-8f20-dd0112c5802d)
+https://github.com/CookieVortex/ProjectZomboid/assets/24642100/d094bdb2-0657-4394-878c-2e79997b4d09
 ![Screenshot_2](https://github.com/CookieVortex/ProjectZomboid/assets/24642100/21a6096a-3884-4c5d-a5a9-31cc551c9761)
 ![Screenshot_1](https://github.com/CookieVortex/ProjectZomboid/assets/24642100/e63a202b-08f5-401e-b739-efdd8f8fcdf7)
 
@@ -39,5 +39,6 @@ If a player uses this object, a ban occurs on the server by IP and player name �
 
 Dynamically adding a player's inventory to the database
 
-https://github.com/CookieVortex/ProjectZomboid/assets/24642100/0bcb0408-b47e-41a5-8df9-c0bd9de9706d
+https://github.com/CookieVortex/ProjectZomboid/assets/24642100/4c5cef94-77ab-48a4-89d1-9ae248628d63
+
 
