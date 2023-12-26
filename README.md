@@ -21,21 +21,6 @@ I am always open to new challenges and believe in constant self-improvement.
 ![Alt текст 6](https://camo.githubusercontent.com/06c6858186510906c21d8c951168d55d976d7dfb9176ed6125c55b8a7de0baae/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4749542d4534344333303f7374796c653d666f722d7468652d6261646765266c6f676f3d676974266c6f676f436f6c6f723d7768697465)
 
 
-
-<p align="right">(<a href="#readme-top">наверх</a>)</p>
-
-<a name="readme-top"></a>
-
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]](https://www.linkedin.com/in/maxim-golubev-128b24260/)
-
-
-
-
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
