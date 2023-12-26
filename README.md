@@ -34,3 +34,10 @@ If a player uses this object, a ban occurs on the server by IP and player name ð
 ![Screenshot_4](https://github.com/CookieVortex/ProjectZomboid/assets/24642100/947a1421-2aba-4442-8f20-dd0112c5802d)
 ![Screenshot_2](https://github.com/CookieVortex/ProjectZomboid/assets/24642100/21a6096a-3884-4c5d-a5a9-31cc551c9761)
 ![Screenshot_1](https://github.com/CookieVortex/ProjectZomboid/assets/24642100/e63a202b-08f5-401e-b739-efdd8f8fcdf7)
+
+# Updates
+
+Dynamically adding a player's inventory to the database
+
+https://github.com/CookieVortex/ProjectZomboid/assets/24642100/0bcb0408-b47e-41a5-8df9-c0bd9de9706d
+
