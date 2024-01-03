@@ -9,6 +9,11 @@
 
   <p align="center">
     These tools will allow the server administrator to find players who cheat and play dishonestly by using third-party programs and exploiting game bugs
+
+    Prohibition on installing water tiles
+System for tracking skill increases or decreases
+Checking for bombs in the player's inventory
+Getting the player's inventory into the database
     <br />
     <a href="https://github.com/CookieVortex/ProjectZomboid"><strong>Explore the docs »</strong></a>
     <br />
