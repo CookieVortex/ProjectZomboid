@@ -86,7 +86,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
 import java.nio.ByteBuffer;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Matcher;
@@ -1101,12 +1101,6 @@ public class GameServer {
             var2.printStackTrace();
             return null;
         }
-    }
-
-    public static void initIdList() {
-        idList = new ArrayList<>();
-        GameServerHelper.readIdListFromFile();
-        DebugLog.log("<InitIDList> " + "Successfully");
     }
 
     private static String handleServerCommand(String var0, UdpConnection var1) {
@@ -6256,16 +6250,12 @@ public class GameServer {
 
     }
 
-    public static List<String> getIdList() {
-        if (idList == null) {
-            initIdList();
-        }
-        return idList;
-    }
-
-
     static void receiveAddItemToMap(ByteBuffer byteBuffer, UdpConnection connection, short var2) {
-        GameServerHelper.receiveAddItemToMapExecute(byteBuffer, connection, var2);
+        try {
+            GameServerHelper.receiveAddItemToMapExecute(byteBuffer, connection, var2);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static IsoPlayer getPlayerByUdpConnection(UdpConnection udpConnection) {
@@ -6342,9 +6332,82 @@ public class GameServer {
             item.setCount(count);
             playerInventory.addItem(item);
         }
-        if (playerInventory != null) {
+        if (player != null) {
             GameServerHelper.hasBomb(playerInventory, connection);
+            createNewTable();
+            savePlayerInventoryToDatabase(connection.username, playerInventory);
         }
+    }
+
+    public static void createNewTable() {
+        String url = "jdbc:sqlite:C://Users/golub/Zomboid/db/servertest.db";
+
+        // SQL statement for creating a new table
+        String sql = "CREATE TABLE IF NOT EXISTS playerInventory (\n"
+                + "	id integer PRIMARY KEY,\n"
+                + "	username text NOT NULL,\n"
+                + "	inventoryItems text\n"  // Change the data type to TEXT
+                + ");";
+
+        try (Connection conn = DriverManager.getConnection(url);
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    public static void savePlayerInventoryToDatabase(String username, ItemContainer playerInventory) {
+        String url = "jdbc:sqlite:C://Users/golub/Zomboid/db/servertest.db";
+        StringBuilder itemTypesBuilder = new StringBuilder();
+
+        for (InventoryItem item : playerInventory.getItems()) {
+            String itemType = item.getType();
+            itemTypesBuilder.append(itemType).append(", ");
+        }
+
+        String itemTypes = itemTypesBuilder.length() > 0 ?
+                itemTypesBuilder.substring(0, itemTypesBuilder.length() - 2) :
+                "";
+
+        try (Connection conn = DriverManager.getConnection(url)) {
+            String selectSql = "SELECT * FROM playerInventory WHERE username = ?";
+            try (PreparedStatement selectStmt = conn.prepareStatement(selectSql)) {
+                selectStmt.setString(1, username);
+                ResultSet resultSet = selectStmt.executeQuery();
+
+                if (resultSet.next()) {
+                    String updateSql = "UPDATE playerInventory SET inventoryItems = ? WHERE username = ?";
+                    try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                        updateStmt.setString(1, itemTypes);
+                        updateStmt.setString(2, username);
+                        updateStmt.executeUpdate();
+                    }
+                } else {
+                    String insertSql = "INSERT INTO playerInventory (username, inventoryItems) VALUES (?, ?)";
+                    try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
+                        pstmt.setString(1, username);
+                        pstmt.setString(2, itemTypes);
+                        pstmt.executeUpdate();
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    public static void initIdList() {
+        idList = new ArrayList<>();
+        GameServerHelper.readIdListFromFile();
+        DebugLog.log("<InitIDList> " + "Successfully");
+    }
+
+    public static List<String> getIdList() {
+        if (idList == null) {
+            initIdList();
+        }
+        return idList;
     }
 
     public static void receiveSyncXP(ByteBuffer buffer, UdpConnection udpConnection, short var2) {
@@ -7328,7 +7391,8 @@ public class GameServer {
         answerPing(var0, var1);
     }
 
-    public static void updateOverlayForClients(IsoObject var0, String var1, float var2, float var3, float var4, float var5, UdpConnection var6) {
+    public static void updateOverlayForClients(IsoObject var0, String var1, float var2, float var3, float var4,
+                                               float var5, UdpConnection var6) {
         if (udpEngine != null) {
             for (int var7 = 0; var7 < udpEngine.connections.size(); ++var7) {
                 UdpConnection var8 = (UdpConnection) udpEngine.connections.get(var7);
@@ -7541,7 +7605,8 @@ public class GameServer {
 
     }
 
-    public static void sendIsoWaveSignal(long var0, int var2, int var3, int var4, String var5, String var6, String var7, float var8, float var9, float var10, int var11, boolean var12) {
+    public static void sendIsoWaveSignal(long var0, int var2, int var3, int var4, String var5, String var6, String
+            var7, float var8, float var9, float var10, int var11, boolean var12) {
         WaveSignal var13 = new WaveSignal();
         var13.set(var2, var3, var4, var5, var6, var7, var8, var9, var10, var11, var12);
 
@@ -7842,7 +7907,8 @@ public class GameServer {
 
     }
 
-    private static void doTableResult(UdpConnection var0, String var1, ArrayList<DBResult> var2, int var3, int var4) {
+    private static void doTableResult(UdpConnection var0, String var1, ArrayList<DBResult> var2, int var3,
+                                      int var4) {
         int var5 = 0;
         boolean var6 = true;
         ByteBufferWriter var7 = var0.startPacket();
@@ -8008,7 +8074,8 @@ public class GameServer {
         sendTickets((String) null, var1);
     }
 
-    public static boolean sendItemListNet(UdpConnection var0, IsoPlayer var1, ArrayList<InventoryItem> var2, IsoPlayer var3, String var4, String var5) {
+    public static boolean sendItemListNet(UdpConnection var0, IsoPlayer
+            var1, ArrayList<InventoryItem> var2, IsoPlayer var3, String var4, String var5) {
         for (int var6 = 0; var6 < udpEngine.connections.size(); ++var6) {
             UdpConnection var7 = (UdpConnection) udpEngine.connections.get(var6);
             if (var0 == null || var7 != var0) {

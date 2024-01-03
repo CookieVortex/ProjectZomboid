@@ -234,11 +234,13 @@ public class GameServerHelper extends GameServer {
             String itemType = item.getType();
             if (itemType.toLowerCase().contains("aerosolbomb") || itemType.toLowerCase().contains("flametrap") || itemType.toLowerCase().contains("pipebomb")) {
                 DebugLog.log("PipeBomb found " + itemType + " " + connection.username + " " + connection.ip);
+
             }
         }
     }
 
-    public static void receiveAddItemToMapExecute(ByteBuffer byteBuffer, UdpConnection connection, short var2) {
+    public static void receiveAddItemToMapExecute(ByteBuffer byteBuffer, UdpConnection connection, short var2) throws Exception {
+        String var1 = "Cheater";
         IsoObject var3 = WorldItemTypes.createFromBuffer(byteBuffer);
         if (var3 instanceof IsoFire && ServerOptions.instance.NoFire.getValue()) {
             DebugLog.log("user \"" + connection.username + "\" tried to start a fire");
@@ -264,6 +266,9 @@ public class GameServerHelper extends GameServer {
                 //Проверяем не хранится ли в нашем списке устанавливаемый игроком объект, если нет, разрешаем установку
                 List<String> idList = getIdList();
                 if (var3.getSprite() != null && idList.contains(var3.getSprite().getName())) {
+                    ServerWorldDatabase.instance.banIp(connection.ip, connection.username, var1, true); //Баним по IP
+                    ServerWorldDatabase.instance.banUser(connection.username, true); //Баним по Username
+                    GameServer.kick(connection, "UI_Policy_Ban", var1);
                     GameServerHelper.log("<BUILD> " + connection.ip + " player want to build WATER");
                 } else {
                     var3.addToWorld();
